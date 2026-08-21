@@ -265,7 +265,7 @@ export default function SpinWheel() {
 
 function ClaimCard({ result, won }: { result: SpinResult; won: boolean }) {
   return (
-    <div className="animate-[fade-in-up_0.4s_ease-out] rounded-2xl border border-amber-200 bg-white p-5 text-center shadow-lg">
+    <div className="animate-[fade-in-up_0.4s_ease-out] rounded-2xl border border-amber-400/20 bg-neutral-900 p-5 text-center shadow-lg">
       {result.prize.image ? (
         <img
           src={result.prize.image}
@@ -275,11 +275,11 @@ function ClaimCard({ result, won }: { result: SpinResult; won: boolean }) {
       ) : (
         <div className="text-4xl">💫</div>
       )}
-      <p className="mt-2 font-bold text-gray-900">
+      <p className="mt-2 font-bold text-white">
         {won ? `You won: ${result.prize.label} 🎁` : "Better luck next time!"}
       </p>
       {result.alreadySpun && (
-        <p className="mt-1 text-xs text-gray-400">You've already used your spin.</p>
+        <p className="mt-1 text-xs text-gray-500">You've already used your spin.</p>
       )}
     </div>
   );
@@ -428,20 +428,9 @@ function ResultModal({
   const celebrate = won && !result.alreadySpun;
   return (
     <>
-      <div className="fixed inset-0 z-30 bg-black/60" />
-      {celebrate && (
-        <div className="pointer-events-none fixed inset-0 z-40">
-          <Lottie
-            src={confettiAnimation}
-            loop={false}
-            autoplay
-            className="h-full w-full"
-            rendererSettings={{ preserveAspectRatio: "xMidYMid slice" }}
-          />
-        </div>
-      )}
+      <div className="fixed inset-0 z-30 bg-black/70" />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="relative w-full max-w-sm animate-[modal-pop_0.35s_ease-out] rounded-2xl bg-white p-6 text-center shadow-2xl">
+        <div className="relative w-full max-w-sm animate-[modal-pop_0.35s_ease-out] rounded-2xl border border-amber-400/20 bg-neutral-900 p-6 text-center shadow-2xl">
           {result.prize.image ? (
             <img
               src={result.prize.image}
@@ -451,14 +440,14 @@ function ResultModal({
           ) : (
             <div className="text-5xl">💫</div>
           )}
-          <h3 className="mt-3 text-lg font-bold text-gray-900">
+          <h3 className="mt-3 text-lg font-bold text-white">
             {result.alreadySpun
               ? "You've already spun!"
               : won
                 ? "Congratulations!"
                 : "So close!"}
           </h3>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-400">
             {result.alreadySpun
               ? `This link already claimed: ${result.prize.label}.`
               : won
@@ -473,6 +462,17 @@ function ResultModal({
           </button>
         </div>
       </div>
+      {celebrate && (
+        <div className="pointer-events-none fixed inset-0 z-[60]">
+          <Lottie
+            src={confettiAnimation}
+            loop={false}
+            autoplay
+            className="h-full w-full"
+            rendererSettings={{ preserveAspectRatio: "xMidYMid slice" }}
+          />
+        </div>
+      )}
     </>
   );
 }
