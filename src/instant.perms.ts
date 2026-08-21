@@ -14,6 +14,17 @@ const rules = {
       delete: "false",
     },
   },
+  // Settings (which popup fields to ask for) are read through the public
+  // /api/settings GET and written only through the password-gated
+  // /api/admin/settings route — never directly from the client SDK.
+  settings: {
+    allow: {
+      view: "false",
+      create: "false",
+      update: "false",
+      delete: "false",
+    },
+  },
 } satisfies InstantRules;
 
 export default rules;

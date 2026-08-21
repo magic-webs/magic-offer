@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { init, id } from "@instantdb/admin";
 import schema from "@/instant.schema";
+import { getSettings } from "@/lib/settingsStore";
 
 const adminDb = init({
   appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
@@ -15,25 +16,45 @@ function generateToken() {
   return randomBytes(9).toString("base64url");
 }
 
-// Registers a name+phone once and hands back a token that acts as a magic
-// link: revisiting `/?t=<token>` (see /api/session) skips this form
-// entirely, whether or not the person has spun yet.
+// Registers a person once and hands back a token that acts as a magic
+// link: revisiting `/?t=<token>` (see /api/session) skips the popup
+// entirely, whether or not they've spun yet. Which fields are actually
+// required is controlled by the admin settings (askName / askPhone) —
+// note that turning `askPhone` off also turns off duplicate-spin
+// prevention, since phone is the only identity we ever collect.
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+  const settings = await getSettings();
 
-  if (!name || !phone) {
+  let name = typeof body?.name === "string" ? body.name.trim() : "";
+  let phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+
+  if (settings.askName && !name) {
     return NextResponse.json(
-      { error: "invalid_input", message: "Name and phone number are required." },
+      { error: "invalid_input", message: "Name is required." },
       { status: 400 },
     );
   }
-  if (!PHONE_RE.test(phone)) {
-    return NextResponse.json(
-      { error: "invalid_input", message: "Enter a valid phone number." },
-      { status: 400 },
-    );
+  name = name || "Guest";
+
+  if (settings.askPhone) {
+    if (!phone) {
+      return NextResponse.json(
+        { error: "invalid_input", message: "Phone number is required." },
+        { status: 400 },
+      );
+    }
+    if (!PHONE_RE.test(phone)) {
+      return NextResponse.json(
+        { error: "invalid_input", message: "Enter a valid phone number." },
+        { status: 400 },
+      );
+    }
+  } else {
+    // No phone collected — mint a private, never-shown placeholder so the
+    // required+unique `phone` field still has a value. Every submission is
+    // its own unique "person" in this mode, so there's no duplicate check.
+    phone = phone && PHONE_RE.test(phone) ? phone : `anon-${randomBytes(8).toString("hex")}`;
   }
 
   const existing = await adminDb.query({ spins: { $: { where: { phone } } } });

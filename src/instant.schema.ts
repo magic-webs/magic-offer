@@ -26,6 +26,11 @@ const _schema = i.schema({
       prizeLabel: i.string().optional(),
       createdAt: i.number().indexed(),
     }),
+    settings: i.entity({
+      key: i.string().unique().indexed(),
+      askName: i.boolean(),
+      askPhone: i.boolean(),
+    }),
   },
   links: {
     $usersLinkedPrimaryUser: {

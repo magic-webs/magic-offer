@@ -28,6 +28,11 @@ type SpinResult = {
 
 type Phase = "loading" | "register" | "ready";
 
+type PopupSettings = {
+  askName: boolean;
+  askPhone: boolean;
+};
+
 // Picks a random point inside the winning wedge (away from its edges) and
 // works out how far the wheel must rotate — on top of however much it has
 // already turned — so that point ends up under the fixed pointer at the top.
@@ -60,6 +65,10 @@ export default function SpinWheel() {
   const [phone, setPhone] = useState("");
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [popupSettings, setPopupSettings] = useState<PopupSettings>({
+    askName: true,
+    askPhone: true,
+  });
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -99,13 +108,25 @@ export default function SpinWheel() {
     };
   }, [tokenParam, router]);
 
+  // Which fields the popup should even show — admin-configurable.
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => setPopupSettings({ askName: data.askName, askPhone: data.askPhone }))
+      .catch(() => {});
+  }, []);
+
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
     if (registering) return;
     setRegisterError(null);
 
-    if (!name.trim() || !phone.trim()) {
-      setRegisterError("Please enter your name and phone number.");
+    if (popupSettings.askName && !name.trim()) {
+      setRegisterError("Please enter your name.");
+      return;
+    }
+    if (popupSettings.askPhone && !phone.trim()) {
+      setRegisterError("Please enter your phone number.");
       return;
     }
 
@@ -194,56 +215,22 @@ export default function SpinWheel() {
       {phase === "loading" && <p className="text-sm text-gray-400">Loading your spin…</p>}
 
       {phase === "register" && (
-        <form
+        <RegisterModal
+          name={name}
+          phone={phone}
+          onNameChange={setName}
+          onPhoneChange={setPhone}
+          settings={popupSettings}
+          registering={registering}
+          error={registerError}
           onSubmit={handleRegister}
-          className="w-full max-w-sm animate-[fade-in-up_0.5s_ease-out] space-y-3"
-        >
-          <div className="relative">
-            <UserIcon className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-amber-400" />
-            <input
-              type="text"
-              placeholder="Your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={registering}
-              className="w-full rounded-2xl border border-rose-100 bg-white py-3 pl-11 pr-4 text-sm text-gray-800 shadow-sm outline-none placeholder:text-gray-400 focus:border-rose-300 focus:ring-2 focus:ring-rose-100 disabled:opacity-60"
-            />
-          </div>
-          <div className="relative">
-            <PhoneIcon className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-rose-400" />
-            <input
-              type="tel"
-              placeholder="Phone number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={registering}
-              className="w-full rounded-2xl border border-rose-100 bg-white py-3 pl-11 pr-4 text-sm text-gray-800 shadow-sm outline-none placeholder:text-gray-400 focus:border-rose-300 focus:ring-2 focus:ring-rose-100 disabled:opacity-60"
-            />
-          </div>
-          {registerError && <p className="text-sm text-red-500">{registerError}</p>}
-          <button
-            type="submit"
-            disabled={registering}
-            className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 px-4 py-4 text-base font-bold text-white transition-all duration-150 ease-out hover:brightness-105 active:translate-y-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0 shadow-[0_6px_0_#1e1b4b,0_10px_18px_rgba(30,27,75,0.4)] active:shadow-[0_2px_0_#1e1b4b,0_4px_10px_rgba(30,27,75,0.35)]"
-          >
-            <Sparkle className="left-4 top-2 h-2.5 w-2.5 opacity-70" color="#ffffff" />
-            <Sparkle className="bottom-2 right-6 h-2 w-2 opacity-60" color="#ffffff" />
-            <span className="relative flex items-center justify-center gap-2">
-              <RetryIcon className="h-5 w-5" />
-              {registering ? "Please wait…" : "Unlock My Spin"}
-            </span>
-          </button>
-          <p className="flex items-center justify-center gap-1.5 pt-1 text-xs text-gray-400">
-            <LockIcon className="h-3.5 w-3.5" />
-            We respect your privacy. Your details are safe with us.
-          </p>
-        </form>
+        />
       )}
 
       {phase === "ready" && (
         <div className="w-full max-w-sm animate-[fade-in-up_0.4s_ease-out] space-y-3 text-center">
           {sessionName && (
-            <p className="text-sm font-semibold text-gray-600">
+            <p className="text-sm font-semibold text-emerald-300">
               Welcome back, {sessionName.split(" ")[0]}! 👋
             </p>
           )}
@@ -255,19 +242,17 @@ export default function SpinWheel() {
               type="button"
               onClick={handleSpin}
               disabled={spinning || submitting}
-              className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 px-4 py-4 text-base font-bold text-white transition-all duration-150 ease-out hover:brightness-105 active:translate-y-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0 shadow-[0_6px_0_#1e1b4b,0_10px_18px_rgba(30,27,75,0.4)] active:shadow-[0_2px_0_#1e1b4b,0_4px_10px_rgba(30,27,75,0.35)]"
+              className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 px-4 py-4 text-base font-bold text-neutral-900 transition-all duration-150 ease-out hover:brightness-105 active:translate-y-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0 shadow-[0_6px_0_#78350f,0_10px_18px_rgba(120,53,15,0.45)] active:shadow-[0_2px_0_#78350f,0_4px_10px_rgba(120,53,15,0.4)]"
             >
-              <Sparkle className="left-4 top-2 h-2.5 w-2.5 opacity-70" color="#ffffff" />
-              <Sparkle className="bottom-2 right-6 h-2 w-2 opacity-60" color="#ffffff" />
+              <Sparkle className="left-4 top-2 h-2.5 w-2.5 opacity-60" color="#78350f" />
+              <Sparkle className="bottom-2 right-6 h-2 w-2 opacity-50" color="#78350f" />
               <span className="relative flex items-center justify-center gap-2">
                 <RetryIcon className={`h-5 w-5 ${spinning ? "animate-spin" : ""}`} />
                 {spinning ? "Spinning…" : submitting ? "Checking…" : "Spin the Wheel"}
               </span>
             </button>
           )}
-          {error && <p className="text-sm text-red-500">{error}</p>}
-
-          {token && <ShareLink token={token} />}
+          {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
       )}
 
@@ -280,7 +265,7 @@ export default function SpinWheel() {
 
 function ClaimCard({ result, won }: { result: SpinResult; won: boolean }) {
   return (
-    <div className="animate-[fade-in-up_0.4s_ease-out] rounded-2xl border border-gray-100 bg-white p-5 text-center shadow-lg">
+    <div className="animate-[fade-in-up_0.4s_ease-out] rounded-2xl border border-amber-200 bg-white p-5 text-center shadow-lg">
       {result.prize.image ? (
         <img
           src={result.prize.image}
@@ -300,39 +285,82 @@ function ClaimCard({ result, won }: { result: SpinResult; won: boolean }) {
   );
 }
 
-function ShareLink({ token }: { token: string }) {
-  const [url, setUrl] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setUrl(`${window.location.origin}/?t=${token}`);
-  }, [token]);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      // Clipboard access can be blocked (permissions, insecure context) —
-      // the URL is still visible to copy by hand.
-    }
-  }
-
-  if (!url) return null;
-
+function RegisterModal({
+  name,
+  phone,
+  onNameChange,
+  onPhoneChange,
+  settings,
+  registering,
+  error,
+  onSubmit,
+}: {
+  name: string;
+  phone: string;
+  onNameChange: (v: string) => void;
+  onPhoneChange: (v: string) => void;
+  settings: PopupSettings;
+  registering: boolean;
+  error: string | null;
+  onSubmit: (e: FormEvent) => void;
+}) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-left">
-      <LinkIcon className="h-4 w-4 shrink-0 text-gray-400" />
-      <span className="min-w-0 flex-1 truncate text-xs text-gray-500">{url}</span>
-      <button
-        type="button"
-        onClick={copy}
-        className="shrink-0 rounded-lg bg-gray-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-gray-800"
-      >
-        {copied ? "Copied!" : "Copy"}
-      </button>
-    </div>
+    <>
+      <div className="fixed inset-0 z-30 bg-black/70" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <form
+          onSubmit={onSubmit}
+          className="w-full max-w-sm animate-[modal-pop_0.35s_ease-out] space-y-3 rounded-2xl border border-amber-400/20 bg-neutral-900 p-6 shadow-2xl"
+        >
+          <h3 className="text-center text-lg font-bold text-white">Enter to Spin 🎁</h3>
+
+          {settings.askName && (
+            <div className="relative">
+              <UserIcon className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-amber-400" />
+              <input
+                type="text"
+                placeholder="Your name"
+                value={name}
+                onChange={(e) => onNameChange(e.target.value)}
+                disabled={registering}
+                autoFocus
+                className="w-full rounded-2xl border border-emerald-800/60 bg-white/5 py-3 pl-11 pr-4 text-sm text-white shadow-sm outline-none placeholder:text-gray-500 focus:border-amber-400/70 focus:ring-2 focus:ring-amber-400/20 disabled:opacity-60"
+              />
+            </div>
+          )}
+          {settings.askPhone && (
+            <div className="relative">
+              <PhoneIcon className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-amber-400" />
+              <input
+                type="tel"
+                placeholder="Phone number"
+                value={phone}
+                onChange={(e) => onPhoneChange(e.target.value)}
+                disabled={registering}
+                className="w-full rounded-2xl border border-emerald-800/60 bg-white/5 py-3 pl-11 pr-4 text-sm text-white shadow-sm outline-none placeholder:text-gray-500 focus:border-amber-400/70 focus:ring-2 focus:ring-amber-400/20 disabled:opacity-60"
+              />
+            </div>
+          )}
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={registering}
+            className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 px-4 py-4 text-base font-bold text-neutral-900 transition-all duration-150 ease-out hover:brightness-105 active:translate-y-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0 shadow-[0_6px_0_#78350f,0_10px_18px_rgba(120,53,15,0.45)] active:shadow-[0_2px_0_#78350f,0_4px_10px_rgba(120,53,15,0.4)]"
+          >
+            <Sparkle className="left-4 top-2 h-2.5 w-2.5 opacity-60" color="#78350f" />
+            <Sparkle className="bottom-2 right-6 h-2 w-2 opacity-50" color="#78350f" />
+            <span className="relative flex items-center justify-center gap-2">
+              <RetryIcon className="h-5 w-5" />
+              {registering ? "Please wait…" : "Unlock My Spin"}
+            </span>
+          </button>
+          <p className="flex items-center justify-center gap-1.5 pt-1 text-xs text-gray-400">
+            <LockIcon className="h-3.5 w-3.5" />
+            We respect your privacy. Your details are safe with us.
+          </p>
+        </form>
+      </div>
+    </>
   );
 }
 
@@ -368,7 +396,7 @@ function Wheel({
 function Pointer() {
   return (
     <div className="absolute -top-2 left-1/2 z-20 -translate-x-1/2">
-      <div className="flex h-10 w-10 rotate-[-45deg] items-center justify-center rounded-[50%_50%_50%_0] bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg">
+      <div className="flex h-10 w-10 rotate-[-45deg] items-center justify-center rounded-[50%_50%_50%_0] bg-gradient-to-br from-amber-400 to-yellow-600 shadow-lg">
         <div className="h-3.5 w-3.5 rounded-full bg-white" />
       </div>
     </div>
@@ -439,7 +467,7 @@ function ResultModal({
           </p>
           <button
             onClick={onClose}
-            className="mt-5 w-full rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 ease-out hover:bg-gray-800 active:translate-y-1 shadow-[0_5px_0_#000000,0_8px_14px_rgba(0,0,0,0.35)] active:shadow-[0_1px_0_#000000,0_2px_6px_rgba(0,0,0,0.3)]"
+            className="mt-5 w-full rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 ease-out hover:bg-emerald-600 active:translate-y-1 shadow-[0_5px_0_#064e3b,0_8px_14px_rgba(6,78,59,0.35)] active:shadow-[0_1px_0_#064e3b,0_2px_6px_rgba(6,78,59,0.3)]"
           >
             Done
           </button>
@@ -495,24 +523,6 @@ function LockIcon(props: SVGProps<SVGSVGElement>) {
     >
       <rect x="5" y="11" width="14" height="9" rx="2" />
       <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-    </svg>
-  );
-}
-
-function LinkIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M9 15l6-6" />
-      <path d="M11 6.5l1-1a3.5 3.5 0 0 1 5 5l-1 1" />
-      <path d="M13 17.5l-1 1a3.5 3.5 0 0 1-5-5l1-1" />
     </svg>
   );
 }
