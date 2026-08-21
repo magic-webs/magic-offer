@@ -30,6 +30,9 @@ const _schema = i.schema({
       // Optional only so the schema push doesn't choke on pre-migration
       // rows; every row created going forward always has one.
       companyId: i.string().indexed().optional(),
+      // { [formField.key]: answer } for whatever extra fields the company
+      // has configured — see the `formFields` entity below.
+      extraFields: i.json().optional(),
       createdAt: i.number().indexed(),
     }),
     settings: i.entity({
@@ -65,6 +68,17 @@ const _schema = i.schema({
       companyId: i.string().indexed().optional(),
       createdAt: i.number().indexed(),
     }),
+    formFields: i.entity({
+      label: i.string(),
+      // Stable slug derived from the label at creation time, used as the
+      // JSON key on spins.extraFields — kept unchanged on edits so
+      // already-collected answers keep resolving to the right field.
+      key: i.string(),
+      required: i.boolean(),
+      order: i.number().indexed(),
+      companyId: i.string().indexed(),
+      createdAt: i.number().indexed(),
+    }),
   },
   links: {
     $usersLinkedPrimaryUser: {
@@ -92,9 +106,21 @@ const _schema = i.schema({
       forward: { on: "companies", has: "one", label: "wheelImage" },
       reverse: { on: "$files", has: "many", label: "wheelImageOfCompanies" },
     },
+    companyBgImage: {
+      forward: { on: "companies", has: "one", label: "bgImage" },
+      reverse: { on: "$files", has: "many", label: "bgImageOfCompanies" },
+    },
+    companyPinImage: {
+      forward: { on: "companies", has: "one", label: "pinImage" },
+      reverse: { on: "$files", has: "many", label: "pinImageOfCompanies" },
+    },
     prizeIcon: {
       forward: { on: "prizes", has: "one", label: "icon" },
       reverse: { on: "$files", has: "many", label: "iconOfPrizes" },
+    },
+    companyFormFields: {
+      forward: { on: "formFields", has: "one", label: "company", onDelete: "cascade" },
+      reverse: { on: "companies", has: "many", label: "formFields" },
     },
   },
   rooms: {

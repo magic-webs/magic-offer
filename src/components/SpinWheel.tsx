@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lottie } from "lottie-react";
-import { getPrizeArcs, type WheelPrize } from "@/lib/wheel";
+import { getPrizeArcs, type WheelFormField, type WheelPrize } from "@/lib/wheel";
 import { playSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
 import confettiAnimation from "../../public/lottie-animation/coffeti.json";
 
@@ -35,7 +35,9 @@ export interface SpinWheelProps {
   // Pre-ordered ascending by `order`.
   prizes: WheelPrize[];
   wheelImageUrl: string;
+  pinImageUrl?: string;
   initialSettings: PopupSettings;
+  formFields: WheelFormField[];
 }
 
 // Picks a random point inside the winning wedge (away from its edges) and
@@ -57,7 +59,14 @@ function computeTargetRotation(currentRotation: number, arcs: ReturnType<typeof 
   return currentRotation + delta + extraSpins * 360;
 }
 
-export default function SpinWheel({ companySlug, prizes, wheelImageUrl, initialSettings }: SpinWheelProps) {
+export default function SpinWheel({
+  companySlug,
+  prizes,
+  wheelImageUrl,
+  pinImageUrl,
+  initialSettings,
+  formFields,
+}: SpinWheelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tokenParam = searchParams.get("t");
@@ -86,6 +95,7 @@ export default function SpinWheel({ companySlug, prizes, wheelImageUrl, initialS
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [extraFieldValues, setExtraFieldValues] = useState<Record<string, string>>({});
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [popupSettings] = useState<PopupSettings>(initialSettings);
@@ -117,8 +127,16 @@ export default function SpinWheel({ companySlug, prizes, wheelImageUrl, initialS
         setToken(tokenParam);
         if (data.hasSpun) {
           setResult({ prize: resolvePrize(data.prizeId, data.prizeLabel), alreadySpun: true });
+          setPhase("ready");
+        } else {
+          // Not spun yet — always show the confirm form, pre-filled with
+          // whatever's already on file, rather than skipping straight to
+          // the wheel.
+          setName(data.name ?? "");
+          setPhone(data.phone ?? "");
+          setExtraFieldValues(data.extraFields ?? {});
+          setPhase("register");
         }
-        setPhase("ready");
       } catch {
         if (!cancelled) setPhase("register");
       }
@@ -142,13 +160,19 @@ export default function SpinWheel({ companySlug, prizes, wheelImageUrl, initialS
       setRegisterError("Please enter your phone number.");
       return;
     }
+    const missingField = formFields.find((f) => f.required && !(extraFieldValues[f.key] ?? "").trim());
+    if (missingField) {
+      setRegisterError(`Please enter your ${missingField.label.toLowerCase()}.`);
+      return;
+    }
 
+    const isConfirmingExisting = Boolean(token);
     setRegistering(true);
     try {
       const res = await fetch(registerUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({ name, phone, token, extraFields: extraFieldValues }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -158,7 +182,9 @@ export default function SpinWheel({ companySlug, prizes, wheelImageUrl, initialS
       setSessionName(name.trim());
       setToken(data.token);
       setPhase("ready");
-      router.replace(wheelHref(data.token));
+      // A confirm/update on an already-issued link keeps the same URL —
+      // only a brand-new registration needs the token appended.
+      if (!isConfirmingExisting) router.replace(wheelHref(data.token));
     } catch {
       setRegisterError("Couldn't reach the server. Check your connection and try again.");
     } finally {
@@ -228,6 +254,7 @@ export default function SpinWheel({ companySlug, prizes, wheelImageUrl, initialS
       >
         <Wheel
           wheelImageUrl={wheelImageUrl}
+          pinImageUrl={pinImageUrl}
           rotation={rotation}
           spinning={spinning}
           onTransitionEnd={handleTransitionEnd}
@@ -243,6 +270,11 @@ export default function SpinWheel({ companySlug, prizes, wheelImageUrl, initialS
           onNameChange={setName}
           onPhoneChange={setPhone}
           settings={popupSettings}
+          formFields={formFields}
+          extraFieldValues={extraFieldValues}
+          onExtraFieldChange={(key, value) =>
+            setExtraFieldValues((prev) => ({ ...prev, [key]: value }))
+          }
           registering={registering}
           error={registerError}
           onSubmit={handleRegister}
@@ -313,6 +345,9 @@ function RegisterModal({
   onNameChange,
   onPhoneChange,
   settings,
+  formFields,
+  extraFieldValues,
+  onExtraFieldChange,
   registering,
   error,
   onSubmit,
@@ -322,6 +357,9 @@ function RegisterModal({
   onNameChange: (v: string) => void;
   onPhoneChange: (v: string) => void;
   settings: PopupSettings;
+  formFields: WheelFormField[];
+  extraFieldValues: Record<string, string>;
+  onExtraFieldChange: (key: string, value: string) => void;
   registering: boolean;
   error: string | null;
   onSubmit: (e: FormEvent) => void;
@@ -363,6 +401,18 @@ function RegisterModal({
               />
             </div>
           )}
+          {formFields.map((field) => (
+            <div key={field.key}>
+              <input
+                type="text"
+                placeholder={field.required ? `${field.label} *` : field.label}
+                value={extraFieldValues[field.key] ?? ""}
+                onChange={(e) => onExtraFieldChange(field.key, e.target.value)}
+                disabled={registering}
+                className="w-full rounded-2xl border border-emerald-800/60 bg-white/5 px-4 py-3 text-sm text-white shadow-sm outline-none placeholder:text-gray-500 focus:border-amber-400/70 focus:ring-2 focus:ring-amber-400/20 disabled:opacity-60"
+              />
+            </div>
+          ))}
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             type="submit"
@@ -388,11 +438,13 @@ function RegisterModal({
 
 function Wheel({
   wheelImageUrl,
+  pinImageUrl,
   rotation,
   spinning,
   onTransitionEnd,
 }: {
   wheelImageUrl: string;
+  pinImageUrl?: string;
   rotation: number;
   spinning: boolean;
   onTransitionEnd: () => void;
@@ -412,12 +464,23 @@ function Wheel({
         }}
         onTransitionEnd={onTransitionEnd}
       />
-      <Pointer />
+      <Pointer pinImageUrl={pinImageUrl} />
     </div>
   );
 }
 
-function Pointer() {
+function Pointer({ pinImageUrl }: { pinImageUrl?: string }) {
+  if (pinImageUrl) {
+    return (
+      <img
+        src={pinImageUrl}
+        alt="Pointer"
+        draggable={false}
+        className="pointer-events-none absolute -top-2 left-1/2 z-20 h-10 w-10 -translate-x-1/2 select-none object-contain drop-shadow-lg"
+      />
+    );
+  }
+
   return (
     <div className="absolute -top-2 left-1/2 z-20 -translate-x-1/2">
       <div className="flex h-10 w-10 rotate-[-45deg] items-center justify-center rounded-[50%_50%_50%_0] bg-gradient-to-br from-amber-400 to-yellow-600 shadow-lg">

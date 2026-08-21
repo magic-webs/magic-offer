@@ -23,6 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       name: s.name,
       phone: s.phone,
       prizeLabel: s.prizeLabel ?? null,
+      extraFields: s.extraFields ?? {},
       createdAt: s.createdAt,
     })),
   });

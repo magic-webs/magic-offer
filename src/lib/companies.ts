@@ -18,11 +18,21 @@ export interface Company {
   createdAt: number;
 }
 
+export interface FormField {
+  id: string;
+  key: string;
+  label: string;
+  required: boolean;
+}
+
 export interface PublicWheelConfig {
   askName: boolean;
   askPhone: boolean;
   wheelImageUrl: string | null;
+  bgImageUrl: string | null;
+  pinImageUrl: string | null;
   prizes: WheelPrize[];
+  fields: FormField[];
 }
 
 function slugify(name: string) {
@@ -34,6 +44,11 @@ function slugify(name: string) {
       .replace(/^-+|-+$/g, "") || "company"
   );
 }
+
+// Same slug shape as company slugs — used as the stable JSON key on
+// spins.extraFields for a form field, derived from its label once at
+// creation and never changed afterward.
+export const slugifyFieldKey = slugify;
 
 export async function getCompanyBySlug(slug: string): Promise<Company | null> {
   const { companies } = await adminDb.query({ companies: { $: { where: { slug } } } });
@@ -90,10 +105,20 @@ export async function getCompanyWithDetails(companyId: string) {
     companies: {
       $: { where: { id: companyId } },
       prizes: { $: { order: { order: "asc" } }, icon: {} },
+      formFields: { $: { order: { order: "asc" } } },
       wheelImage: {},
+      bgImage: {},
+      pinImage: {},
     },
   });
   return companies[0] ?? null;
+}
+
+export async function getFormFields(companyId: string): Promise<FormField[]> {
+  const { formFields } = await adminDb.query({
+    formFields: { $: { where: { companyId }, order: { order: "asc" } } },
+  });
+  return formFields.map((f) => ({ id: f.id, key: f.key, label: f.label, required: f.required }));
 }
 
 export async function updateCompany(
@@ -111,6 +136,8 @@ export async function getPublicWheelConfig(companyId: string): Promise<PublicWhe
     askName: company.askName,
     askPhone: company.askPhone,
     wheelImageUrl: company.wheelImage?.url ?? null,
+    bgImageUrl: company.bgImage?.url ?? null,
+    pinImageUrl: company.pinImage?.url ?? null,
     prizes: (company.prizes ?? []).map((p) => ({
       id: p.id,
       label: p.label,
@@ -119,6 +146,12 @@ export async function getPublicWheelConfig(companyId: string): Promise<PublicWhe
       isWin: p.isWin,
       color: p.color,
       iconUrl: p.icon?.url,
+    })),
+    fields: (company.formFields ?? []).map((f) => ({
+      id: f.id,
+      key: f.key,
+      label: f.label,
+      required: f.required,
     })),
   };
 }

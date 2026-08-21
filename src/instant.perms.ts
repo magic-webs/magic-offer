@@ -44,6 +44,14 @@ const rules = {
       delete: "false",
     },
   },
+  formFields: {
+    allow: {
+      view: "false",
+      create: "false",
+      update: "false",
+      delete: "false",
+    },
+  },
 } satisfies InstantRules;
 
 export default rules;

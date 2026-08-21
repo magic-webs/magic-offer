@@ -17,6 +17,12 @@ export interface WheelPrizeArc extends WheelPrize {
   end: number;
 }
 
+export interface WheelFormField {
+  key: string;
+  label: string;
+  required: boolean;
+}
+
 // Fixed equal slices (360 / N), in the given order, centered on the
 // cardinal directions when N === 4 (matching today's wheel image layout)
 // and generalizing cleanly to any other prize count.

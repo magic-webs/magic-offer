@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDefaultCompany } from "@/lib/companies";
+import { getDefaultCompany, getFormFields } from "@/lib/companies";
 import { getSettings } from "@/lib/settingsStore";
 import { registerSpin } from "@/lib/registerSpin";
 
@@ -20,12 +20,16 @@ export async function POST(req: NextRequest) {
   }
 
   const settings = await getSettings();
+  const fields = await getFormFields(company.id);
   const result = await registerSpin({
     companyId: company.id,
     companySlug: null,
     name: typeof body?.name === "string" ? body.name : null,
     phone: typeof body?.phone === "string" ? body.phone : null,
+    token: typeof body?.token === "string" ? body.token : null,
+    extraFields: typeof body?.extraFields === "object" && body.extraFields ? body.extraFields : undefined,
     settings,
+    fields,
   });
 
   if (!result.ok) {

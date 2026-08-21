@@ -25,6 +25,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     askName: company.askName,
     askPhone: company.askPhone,
     wheelImageUrl: company.wheelImage?.url ?? null,
+    bgImageUrl: company.bgImage?.url ?? null,
+    pinImageUrl: company.pinImage?.url ?? null,
     prizes: (company.prizes ?? [])
       .slice()
       .sort((a, b) => a.order - b.order)
@@ -36,6 +38,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         order: p.order,
         isWin: p.isWin,
         iconUrl: p.icon?.url ?? null,
+      })),
+    fields: (company.formFields ?? [])
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((f) => ({
+        id: f.id,
+        key: f.key,
+        label: f.label,
+        required: f.required,
+        order: f.order,
       })),
   });
 }

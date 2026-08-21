@@ -28,8 +28,12 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     name: record.name,
+    // Never surface the private anon-<hex> placeholder minted when
+    // askPhone was off at registration time — it's not a real phone number.
+    phone: record.phone.startsWith("anon-") ? null : record.phone,
     hasSpun: Boolean(record.prizeId),
     prizeId: record.prizeId ?? null,
     prizeLabel: record.prizeLabel ?? null,
+    extraFields: record.extraFields ?? {},
   });
 }

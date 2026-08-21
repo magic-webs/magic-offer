@@ -10,7 +10,12 @@ export interface RegisterSpinInput {
   companySlug: string | null;
   name: string | null;
   phone: string | null;
+  // Present when this is a returning magic-link visitor confirming/editing
+  // their already-known info, rather than a brand-new registration.
+  token?: string | null;
+  extraFields?: Record<string, string>;
   settings: { askName: boolean; askPhone: boolean };
+  fields?: { key: string; label: string; required: boolean }[];
 }
 
 export type RegisterSpinResult =
@@ -27,7 +32,7 @@ function generateToken() {
 // mirrors the exact idempotent lookup-then-create-with-race-catch pattern
 // this app has always used, now scoped by companyId instead of globally.
 export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSpinResult> {
-  const { companyId, companySlug, settings } = input;
+  const { companyId, companySlug, settings, fields = [] } = input;
 
   let name = input.name?.trim() ?? "";
   let phone = input.phone?.trim() ?? "";
@@ -48,6 +53,35 @@ export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSp
     phone = phone && PHONE_RE.test(phone) ? phone : `anon-${randomBytes(8).toString("hex")}`;
   }
 
+  const extraFields: Record<string, string> = {};
+  for (const field of fields) {
+    const value = (input.extraFields?.[field.key] ?? "").trim();
+    if (field.required && !value) {
+      return {
+        ok: false,
+        status: 400,
+        error: "invalid_input",
+        message: `${field.label} is required.`,
+      };
+    }
+    extraFields[field.key] = value;
+  }
+
+  // A returning magic-link visitor confirming/editing their info — update
+  // their existing row directly by id, no phone-uniqueness lookup needed
+  // since it's their own already-issued link.
+  if (input.token) {
+    const { spins } = await adminDb.query({
+      spins: { $: { where: { token: input.token, companyId } } },
+    });
+    const existing = spins[0];
+    if (existing?.token) {
+      await adminDb.transact(adminDb.tx.spins[existing.id].update({ name, phone, extraFields }));
+      return { ok: true, token: existing.token, loginUrl: buildLoginUrl(existing.token, companySlug) };
+    }
+    // Stale/invalid token — fall through to the normal lookup-or-create flow.
+  }
+
   const existing = await adminDb.query({ spins: { $: { where: { phone, companyId } } } });
   if (existing.spins.length > 0) {
     const prev = existing.spins[0];
@@ -63,7 +97,7 @@ export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSp
   try {
     await adminDb.transact(
       adminDb.tx.spins[id()]
-        .update({ name, phone, token, companyId, createdAt: Date.now() })
+        .update({ name, phone, token, companyId, extraFields, createdAt: Date.now() })
         .link({ company: companyId }),
     );
   } catch {
