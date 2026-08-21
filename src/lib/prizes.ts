@@ -17,25 +17,25 @@ export const PRIZES: Prize[] = [
   {
     id: "perfume_1",
     label: "Get 1 Free Perfume",
-    weight: 40,
+    weight: 48,
     color: "#8b5cf6",
     image: "/perfume/p1.png",
   },
   {
     id: "perfume_2",
     label: "Get 2 Free Perfumes",
-    weight: 30,
+    weight: 36,
     color: "#ec4899",
     image: "/perfume/p2.png",
   },
   {
     id: "perfume_3",
     label: "Get 3 Free Perfumes",
-    weight: 5,
+    weight: 6,
     color: "#f59e0b",
     image: "/perfume/p3.png",
   },
-  { id: "no_win", label: "Better Luck Next Time", weight: 25, color: "#3b82f6" },
+  { id: "no_win", label: "Better Luck Next Time", weight: 10, color: "#3b82f6" },
 ];
 
 export interface PrizeArc extends Prize {
