@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { init } from "@instantdb/admin";
-import schema from "@/instant.schema";
-import { drawWeightedPrize } from "@/lib/prizes";
-
-const adminDb = init({
-  appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
-  adminToken: process.env.INSTANT_APP_ADMIN_TOKEN!,
-  schema,
-});
+import { adminDb, getDefaultCompany } from "@/lib/companies";
+import { drawWeightedPrize, type WheelPrize } from "@/lib/wheel";
 
 // The spin itself is identified purely by the token from /api/register —
 // the name and phone are already on file, so nothing re-enters them here.
+// This route is shared by every company: a spins row already knows which
+// company it belongs to, so no /api/w/[slug]/spin route is needed.
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const token = typeof body?.token === "string" ? body.token.trim() : "";
@@ -39,7 +34,26 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const prize = drawWeightedPrize();
+  // Self-healing fallback: a row created in the gap between the migration
+  // running and this route's deploy might not have companyId set yet.
+  const companyId = record.companyId ?? (await getDefaultCompany())?.id;
+  if (!companyId) {
+    return NextResponse.json(
+      { error: "server_error", message: "Something went wrong. Please try again." },
+      { status: 500 },
+    );
+  }
+
+  const { prizes } = await adminDb.query({
+    prizes: { $: { where: { companyId }, order: { order: "asc" } } },
+  });
+  if (prizes.length === 0) {
+    return NextResponse.json(
+      { error: "server_error", message: "This wheel isn't set up yet." },
+      { status: 500 },
+    );
+  }
+  const prize = drawWeightedPrize(prizes as WheelPrize[]);
 
   try {
     await adminDb.transact(

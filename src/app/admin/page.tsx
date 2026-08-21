@@ -1,19 +1,14 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 
-type SpinRow = {
+type CompanyRow = {
   id: string;
+  slug: string;
   name: string;
-  phone: string;
-  prizeId: string | null;
-  prizeLabel: string | null;
-  createdAt: number;
-};
-
-type Settings = {
-  askName: boolean;
-  askPhone: boolean;
+  isActive: boolean;
+  spinCount: number;
 };
 
 type Status = "checking" | "unauthenticated" | "authenticated";
@@ -24,24 +19,19 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loggingIn, setLoggingIn] = useState(false);
 
-  const [spins, setSpins] = useState<SpinRow[]>([]);
-  const [settings, setSettings] = useState<Settings>({ askName: true, askPhone: true });
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
+  const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   async function loadData() {
-    const [spinsRes, settingsRes] = await Promise.all([
-      fetch("/api/admin/spins"),
-      fetch("/api/admin/settings"),
-    ]);
-    if (spinsRes.status === 401 || settingsRes.status === 401) {
+    const res = await fetch("/api/admin/companies");
+    if (res.status === 401) {
       setStatus("unauthenticated");
       return;
     }
-    const spinsData = await spinsRes.json();
-    const settingsData = await settingsRes.json();
-    setSpins(spinsData.spins ?? []);
-    setSettings(settingsData);
+    const data = await res.json();
+    setCompanies(data.companies ?? []);
     setStatus("authenticated");
   }
 
@@ -77,27 +67,34 @@ export default function AdminPage() {
 
   async function handleLogout() {
     await fetch("/api/admin/logout", { method: "POST" });
-    setSpins([]);
+    setCompanies([]);
     setStatus("unauthenticated");
   }
 
-  async function saveSettings(next: Settings) {
-    setSettings(next);
-    setSavingSettings(true);
+  async function handleCreate(e: FormEvent) {
+    e.preventDefault();
+    if (creating || !newName.trim()) return;
+    setCreating(true);
+    setCreateError(null);
     try {
-      const res = await fetch("/api/admin/settings", {
-        method: "PUT",
+      const res = await fetch("/api/admin/companies", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
+        body: JSON.stringify({ name: newName.trim() }),
       });
       if (res.status === 401) {
         setStatus("unauthenticated");
         return;
       }
-      setSavedFlash(true);
-      setTimeout(() => setSavedFlash(false), 1500);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setCreateError(data?.message ?? "Couldn't create the company.");
+        return;
+      }
+      setNewName("");
+      await loadData();
     } finally {
-      setSavingSettings(false);
+      setCreating(false);
     }
   }
 
@@ -138,13 +135,11 @@ export default function AdminPage() {
     );
   }
 
-  const spunCount = spins.filter((s) => s.prizeId).length;
-
   return (
     <div className="min-h-screen bg-neutral-950 px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Spin Wheel Admin</h1>
+          <h1 className="text-2xl font-bold">Wheel Offers Admin</h1>
           <button
             onClick={handleLogout}
             className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/5"
@@ -154,88 +149,60 @@ export default function AdminPage() {
         </div>
 
         <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-          <h2 className="font-semibold text-white">Popup fields</h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Choose what the registration popup asks visitors for before they can spin.
-          </p>
-          <div className="mt-4 space-y-3">
-            <label className="flex items-center gap-3 text-sm text-gray-200">
-              <input
-                type="checkbox"
-                checked={settings.askName}
-                onChange={(e) => saveSettings({ ...settings, askName: e.target.checked })}
-                className="h-4 w-4 rounded accent-amber-400"
-              />
-              Ask for name
-            </label>
-            <label className="flex items-center gap-3 text-sm text-gray-200">
-              <input
-                type="checkbox"
-                checked={settings.askPhone}
-                onChange={(e) => saveSettings({ ...settings, askPhone: e.target.checked })}
-                className="h-4 w-4 rounded accent-amber-400"
-              />
-              Ask for phone number
-            </label>
-          </div>
-          {!settings.askPhone && (
-            <p className="mt-3 text-xs text-amber-300">
-              Heads up: without a phone number there's no way to identify a returning visitor, so
-              duplicate-spin prevention is effectively off while this is unchecked.
-            </p>
-          )}
-          <p className="mt-3 text-xs text-gray-500">
-            {savingSettings ? "Saving…" : savedFlash ? "Saved." : " "}
-          </p>
+          <h2 className="font-semibold text-white">Create a company</h2>
+          <form onSubmit={handleCreate} className="mt-3 flex flex-wrap gap-3">
+            <input
+              type="text"
+              placeholder="Company name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="min-w-[220px] flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none placeholder:text-gray-500 focus:border-amber-400/70 focus:ring-2 focus:ring-amber-400/20"
+            />
+            <button
+              type="submit"
+              disabled={creating || !newName.trim()}
+              className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-neutral-900 hover:bg-amber-300 disabled:opacity-60"
+            >
+              {creating ? "Creating…" : "Create"}
+            </button>
+          </form>
+          {createError && <p className="mt-2 text-sm text-red-400">{createError}</p>}
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-semibold text-white">Results</h2>
-            <p className="text-sm text-gray-400">
-              {spunCount} spun / {spins.length} registered
-            </p>
-          </div>
+          <h2 className="font-semibold text-white">Companies</h2>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
+            <table className="w-full min-w-[480px] text-left text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-gray-400">
                   <th className="py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Phone</th>
-                  <th className="py-2 pr-4 font-medium">Prize</th>
-                  <th className="py-2 pr-4 font-medium">Date</th>
+                  <th className="py-2 pr-4 font-medium">Slug</th>
+                  <th className="py-2 pr-4 font-medium">Status</th>
+                  <th className="py-2 pr-4 font-medium">Registrations</th>
                 </tr>
               </thead>
               <tbody>
-                {spins.length === 0 && (
+                {companies.length === 0 && (
                   <tr>
                     <td colSpan={4} className="py-6 text-center text-gray-500">
-                      No registrations yet.
+                      No companies yet — create one above.
                     </td>
                   </tr>
                 )}
-                {spins.map((s) => (
-                  <tr key={s.id} className="border-b border-white/5">
-                    <td className="py-2 pr-4 text-gray-200">{s.name}</td>
-                    <td className="py-2 pr-4 text-gray-400">
-                      {s.phone.startsWith("anon-") ? "—" : s.phone}
+                {companies.map((c) => (
+                  <tr key={c.id} className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-gray-200">
+                      <Link href={`/admin/${c.slug}`} className="hover:text-amber-300">
+                        {c.name}
+                      </Link>
                     </td>
+                    <td className="py-2 pr-4 font-mono text-gray-400">{c.slug}</td>
                     <td className="py-2 pr-4">
-                      {s.prizeLabel ? (
-                        <span
-                          className={
-                            s.prizeId === "no_win" ? "text-gray-400" : "text-emerald-400"
-                          }
-                        >
-                          {s.prizeLabel}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">Not spun yet</span>
-                      )}
+                      <span className={c.isActive ? "text-emerald-400" : "text-gray-500"}>
+                        {c.isActive ? "Active" : "Inactive"}
+                      </span>
                     </td>
-                    <td className="py-2 pr-4 text-gray-500">
-                      {new Date(s.createdAt).toLocaleString()}
-                    </td>
+                    <td className="py-2 pr-4 text-gray-400">{c.spinCount}</td>
                   </tr>
                 ))}
               </tbody>

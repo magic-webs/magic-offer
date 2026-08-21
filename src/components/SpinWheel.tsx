@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -9,20 +10,15 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lottie } from "lottie-react";
-import { getPrize, getPrizeArcs, type Prize, type PrizeId } from "@/lib/prizes";
+import { getPrizeArcs, type WheelPrize } from "@/lib/wheel";
 import { playSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
 import confettiAnimation from "../../public/lottie-animation/coffeti.json";
 
 const WHEEL_SIZE = 320;
 const SPIN_DURATION_MS = 4200;
 
-// Arcs are only used for the landing math now — the wheel face itself is
-// the static image below, already laid out top/right/bottom/left in this
-// same order (1 Perfume, 2 Perfumes, 3 Perfumes, Try Again).
-const ARCS = getPrizeArcs();
-
 type SpinResult = {
-  prize: Prize;
+  prize: WheelPrize;
   alreadySpun: boolean;
 };
 
@@ -33,11 +29,20 @@ type PopupSettings = {
   askPhone: boolean;
 };
 
+export interface SpinWheelProps {
+  // undefined => the legacy default company, hits the flat /api routes.
+  companySlug?: string;
+  // Pre-ordered ascending by `order`.
+  prizes: WheelPrize[];
+  wheelImageUrl: string;
+  initialSettings: PopupSettings;
+}
+
 // Picks a random point inside the winning wedge (away from its edges) and
 // works out how far the wheel must rotate — on top of however much it has
 // already turned — so that point ends up under the fixed pointer at the top.
-function computeTargetRotation(currentRotation: number, prizeId: PrizeId) {
-  const arc = ARCS.find((a) => a.id === prizeId)!;
+function computeTargetRotation(currentRotation: number, arcs: ReturnType<typeof getPrizeArcs>, prizeId: string) {
+  const arc = arcs.find((a) => a.id === prizeId)!;
   const span = arc.end - arc.start;
   const margin = span * 0.15;
   const rawPoint = arc.start + margin + Math.random() * (span - margin * 2);
@@ -52,10 +57,28 @@ function computeTargetRotation(currentRotation: number, prizeId: PrizeId) {
   return currentRotation + delta + extraSpins * 360;
 }
 
-export default function SpinWheel() {
+export default function SpinWheel({ companySlug, prizes, wheelImageUrl, initialSettings }: SpinWheelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tokenParam = searchParams.get("t");
+
+  const arcs = useMemo(() => getPrizeArcs(prizes), [prizes]);
+  // Falls back to a minimal placeholder if a prize was deleted from the
+  // admin after this token already won it — keeps old magic links working.
+  function resolvePrize(prizeId: string, fallbackLabel?: string | null): WheelPrize {
+    return (
+      prizes.find((p) => p.id === prizeId) ?? {
+        id: prizeId,
+        label: fallbackLabel ?? "Prize",
+        weight: 0,
+        order: 0,
+        isWin: false,
+      }
+    );
+  }
+
+  const registerUrl = companySlug ? `/api/w/${companySlug}/register` : "/api/register";
+  const wheelHref = (token: string) => (companySlug ? `/w/${companySlug}?t=${token}` : `/?t=${token}`);
 
   const [phase, setPhase] = useState<Phase>(tokenParam ? "loading" : "register");
   const [token, setToken] = useState<string | null>(null);
@@ -65,10 +88,7 @@ export default function SpinWheel() {
   const [phone, setPhone] = useState("");
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
-  const [popupSettings, setPopupSettings] = useState<PopupSettings>({
-    askName: true,
-    askPhone: true,
-  });
+  const [popupSettings] = useState<PopupSettings>(initialSettings);
 
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -96,7 +116,7 @@ export default function SpinWheel() {
         setSessionName(data.name);
         setToken(tokenParam);
         if (data.hasSpun) {
-          setResult({ prize: getPrize(data.prizeId as PrizeId), alreadySpun: true });
+          setResult({ prize: resolvePrize(data.prizeId, data.prizeLabel), alreadySpun: true });
         }
         setPhase("ready");
       } catch {
@@ -106,15 +126,8 @@ export default function SpinWheel() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenParam, router]);
-
-  // Which fields the popup should even show — admin-configurable.
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((res) => res.json())
-      .then((data) => setPopupSettings({ askName: data.askName, askPhone: data.askPhone }))
-      .catch(() => {});
-  }, []);
 
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
@@ -132,7 +145,7 @@ export default function SpinWheel() {
 
     setRegistering(true);
     try {
-      const res = await fetch("/api/register", {
+      const res = await fetch(registerUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone }),
@@ -145,7 +158,7 @@ export default function SpinWheel() {
       setSessionName(name.trim());
       setToken(data.token);
       setPhase("ready");
-      router.replace(`/?t=${data.token}`);
+      router.replace(wheelHref(data.token));
     } catch {
       setRegisterError("Couldn't reach the server. Check your connection and try again.");
     } finally {
@@ -173,9 +186,9 @@ export default function SpinWheel() {
         setError(data.message ?? "Something went wrong. Please try again.");
         return;
       }
-      const prize = getPrize(data.prizeId as PrizeId);
+      const prize = resolvePrize(data.prizeId, data.prizeLabel);
       pendingResultRef.current = { prize, alreadySpun: Boolean(data.alreadySpun) };
-      setRotation((prev) => computeTargetRotation(prev, prize.id));
+      setRotation((prev) => computeTargetRotation(prev, arcs, prize.id));
       setSpinning(true);
       playSpinSound(SPIN_DURATION_MS);
     } catch {
@@ -193,13 +206,17 @@ export default function SpinWheel() {
       setResult(landed);
       setShowModal(true);
       pendingResultRef.current = null;
-      if (landed.prize.id !== "no_win" && !landed.alreadySpun) {
+      if (landed.prize.isWin && !landed.alreadySpun) {
         playWinSound();
       }
     }
   }
 
-  const won = result != null && result.prize.id !== "no_win";
+  const won = result != null && result.prize.isWin;
+
+  if (prizes.length === 0) {
+    return <p className="text-sm text-gray-400">This wheel isn&apos;t set up yet — check back soon!</p>;
+  }
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -209,7 +226,12 @@ export default function SpinWheel() {
           animation: spinning ? "none" : "wheel-idle 3.2s ease-in-out infinite",
         }}
       >
-        <Wheel rotation={rotation} spinning={spinning} onTransitionEnd={handleTransitionEnd} />
+        <Wheel
+          wheelImageUrl={wheelImageUrl}
+          rotation={rotation}
+          spinning={spinning}
+          onTransitionEnd={handleTransitionEnd}
+        />
       </div>
 
       {phase === "loading" && <p className="text-sm text-gray-400">Loading your spin…</p>}
@@ -266,9 +288,9 @@ export default function SpinWheel() {
 function ClaimCard({ result, won }: { result: SpinResult; won: boolean }) {
   return (
     <div className="animate-[fade-in-up_0.4s_ease-out] rounded-2xl border border-amber-400/20 bg-neutral-900 p-5 text-center shadow-lg">
-      {result.prize.image ? (
+      {result.prize.iconUrl ? (
         <img
-          src={result.prize.image}
+          src={result.prize.iconUrl}
           alt={result.prize.label}
           className="mx-auto h-20 w-20 object-contain"
         />
@@ -365,10 +387,12 @@ function RegisterModal({
 }
 
 function Wheel({
+  wheelImageUrl,
   rotation,
   spinning,
   onTransitionEnd,
 }: {
+  wheelImageUrl: string;
   rotation: number;
   spinning: boolean;
   onTransitionEnd: () => void;
@@ -376,8 +400,8 @@ function Wheel({
   return (
     <div className="relative" style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}>
       <img
-        src="/perfume/spin-wheel-1.png"
-        alt="Prize wheel: 1 Perfume, 2 Perfumes, 3 Perfumes, or Try Again"
+        src={wheelImageUrl}
+        alt="Prize wheel"
         draggable={false}
         className="pointer-events-none h-full w-full select-none object-contain"
         style={{
@@ -431,9 +455,9 @@ function ResultModal({
       <div className="fixed inset-0 z-30 bg-black/70" />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="relative w-full max-w-sm animate-[modal-pop_0.35s_ease-out] rounded-2xl border border-amber-400/20 bg-neutral-900 p-6 text-center shadow-2xl">
-          {result.prize.image ? (
+          {result.prize.iconUrl ? (
             <img
-              src={result.prize.image}
+              src={result.prize.iconUrl}
               alt={result.prize.label}
               className="mx-auto h-28 w-28 object-contain drop-shadow-lg"
             />

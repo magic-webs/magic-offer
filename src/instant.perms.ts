@@ -25,6 +25,25 @@ const rules = {
       delete: "false",
     },
   },
+  // Companies and prizes follow the same rule as spins/settings above —
+  // every read/write goes through password-gated /api/admin/* routes using
+  // the admin SDK, never the client SDK.
+  companies: {
+    allow: {
+      view: "false",
+      create: "false",
+      update: "false",
+      delete: "false",
+    },
+  },
+  prizes: {
+    allow: {
+      view: "false",
+      create: "false",
+      update: "false",
+      delete: "false",
+    },
+  },
 } satisfies InstantRules;
 
 export default rules;

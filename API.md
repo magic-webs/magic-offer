@@ -6,6 +6,14 @@ These are the public endpoints an external system (CRM, WhatsApp/SMS bot, etc.)
 can call. Everything else in the app talks to InstantDB only through these
 routes — there is no direct database access from outside.
 
+**Multiple companies:** the routes below are for the original/default wheel
+and never change shape. Every additional company created from `/admin` gets
+its own wheel at `https://win.magicwebs.ai/w/{slug}` with its own
+`POST /api/w/{slug}/register` and `GET /api/w/{slug}/settings`, mirroring
+`/api/register` and `/api/settings` below. `/api/session` and `/api/spin` are
+shared automatically by every company — a spin link already knows which
+company it belongs to, so there's no per-company version of those two.
+
 ## Get a spin link
 
 ```

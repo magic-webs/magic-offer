@@ -6,6 +6,11 @@ export function getSiteUrl() {
   return (configured ?? "http://localhost:3000").replace(/\/+$/, "");
 }
 
-export function buildLoginUrl(token: string) {
-  return `${getSiteUrl()}/?t=${token}`;
+// A falsy `companySlug` keeps the original global magic-link shape
+// (`/?t=<token>`) so existing production links never break; a company
+// slug namespaces the link under `/w/<slug>` for every other company.
+export function buildLoginUrl(token: string, companySlug?: string | null) {
+  return companySlug
+    ? `${getSiteUrl()}/w/${companySlug}?t=${token}`
+    : `${getSiteUrl()}/?t=${token}`;
 }

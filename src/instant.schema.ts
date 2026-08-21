@@ -20,16 +20,50 @@ const _schema = i.schema({
     }),
     spins: i.entity({
       name: i.string(),
-      phone: i.string().unique().indexed(),
+      // No longer globally unique — uniqueness is per-company and enforced
+      // in application code (see /api/register), since InstantDB has no
+      // compound-unique constraint.
+      phone: i.string().indexed(),
       token: i.string().unique().indexed().optional(),
       prizeId: i.string().indexed().optional(),
       prizeLabel: i.string().optional(),
+      // Optional only so the schema push doesn't choke on pre-migration
+      // rows; every row created going forward always has one.
+      companyId: i.string().indexed().optional(),
       createdAt: i.number().indexed(),
     }),
     settings: i.entity({
       key: i.string().unique().indexed(),
       askName: i.boolean(),
       askPhone: i.boolean(),
+    }),
+    companies: i.entity({
+      slug: i.string().unique().indexed(),
+      name: i.string(),
+      isActive: i.boolean().indexed(),
+      askName: i.boolean(),
+      askPhone: i.boolean(),
+      createdAt: i.number().indexed(),
+    }),
+    prizes: i.entity({
+      label: i.string(),
+      weight: i.number(),
+      color: i.string().optional(),
+      // Clockwise slice position, ascending, starting at the top of the
+      // wheel image — must match how the admin lays out their uploaded
+      // wheel image.
+      order: i.number().indexed(),
+      // Replaces the old hardcoded id==="no_win" string check now that
+      // prize ids are opaque DB row ids.
+      isWin: i.boolean(),
+      // Plain field (alongside the `company` link below) so the hot-path
+      // /api/spin route can filter with the same `where: { companyId }`
+      // idiom already used on `spins`. Optional in the type only so the
+      // push doesn't choke on the 4 pre-existing rows from the initial
+      // migration (backfilled immediately after this push); every row
+      // created going forward always has one.
+      companyId: i.string().indexed().optional(),
+      createdAt: i.number().indexed(),
     }),
   },
   links: {
@@ -45,6 +79,22 @@ const _schema = i.schema({
         has: "many",
         label: "linkedGuestUsers",
       },
+    },
+    companyPrizes: {
+      forward: { on: "prizes", has: "one", label: "company", onDelete: "cascade" },
+      reverse: { on: "companies", has: "many", label: "prizes" },
+    },
+    companySpins: {
+      forward: { on: "spins", has: "one", label: "company", onDelete: "cascade" },
+      reverse: { on: "companies", has: "many", label: "spins" },
+    },
+    companyWheelImage: {
+      forward: { on: "companies", has: "one", label: "wheelImage" },
+      reverse: { on: "$files", has: "many", label: "wheelImageOfCompanies" },
+    },
+    prizeIcon: {
+      forward: { on: "prizes", has: "one", label: "icon" },
+      reverse: { on: "$files", has: "many", label: "iconOfPrizes" },
     },
   },
   rooms: {
