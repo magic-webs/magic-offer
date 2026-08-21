@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { init, id } from "@instantdb/admin";
 import schema from "@/instant.schema";
 import { getSettings } from "@/lib/settingsStore";
+import { buildLoginUrl } from "@/lib/siteUrl";
 
 const adminDb = init({
   appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
@@ -61,12 +62,12 @@ export async function POST(req: NextRequest) {
   if (existing.spins.length > 0) {
     const prev = existing.spins[0];
     if (prev.token) {
-      return NextResponse.json({ token: prev.token });
+      return NextResponse.json({ token: prev.token, loginUrl: buildLoginUrl(prev.token) });
     }
     // Pre-existing row from before tokens existed — attach one now.
     const token = generateToken();
     await adminDb.transact(adminDb.tx.spins[prev.id].update({ token }));
-    return NextResponse.json({ token });
+    return NextResponse.json({ token, loginUrl: buildLoginUrl(token) });
   }
 
   const token = generateToken();
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
     const existingAfterRace = await adminDb.query({ spins: { $: { where: { phone } } } });
     const prev = existingAfterRace.spins[0];
     if (prev?.token) {
-      return NextResponse.json({ token: prev.token });
+      return NextResponse.json({ token: prev.token, loginUrl: buildLoginUrl(prev.token) });
     }
     return NextResponse.json(
       { error: "server_error", message: "Something went wrong. Please try again." },
@@ -93,5 +94,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ token });
+  return NextResponse.json({ token, loginUrl: buildLoginUrl(token) });
 }
