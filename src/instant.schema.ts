@@ -18,6 +18,14 @@ const _schema = i.schema({
       done: i.boolean(),
       createdAt: i.number(),
     }),
+    spins: i.entity({
+      name: i.string(),
+      phone: i.string().unique().indexed(),
+      token: i.string().unique().indexed().optional(),
+      prizeId: i.string().indexed().optional(),
+      prizeLabel: i.string().optional(),
+      createdAt: i.number().indexed(),
+    }),
   },
   links: {
     $usersLinkedPrimaryUser: {

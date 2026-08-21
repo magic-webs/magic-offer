@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Create Instant App',
-  description: 'Instant DB Starter App',
+  title: 'Spin & Win | Magic Offer',
+  description: 'Spin the wheel for a chance to win free perfume.',
 };
 
 export default function RootLayout({
