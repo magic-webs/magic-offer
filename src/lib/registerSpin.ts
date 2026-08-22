@@ -53,18 +53,12 @@ export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSp
     phone = phone && PHONE_RE.test(phone) ? phone : `anon-${randomBytes(8).toString("hex")}`;
   }
 
+  // Whether an extra field is required is enforced only by the popup form
+  // (see SpinWheel's handleRegister) — the API accepts whatever was sent,
+  // required or not, rather than duplicating that check here.
   const extraFields: Record<string, string> = {};
   for (const field of fields) {
-    const value = (input.extraFields?.[field.key] ?? "").trim();
-    if (field.required && !value) {
-      return {
-        ok: false,
-        status: 400,
-        error: "invalid_input",
-        message: `${field.label} is required.`,
-      };
-    }
-    extraFields[field.key] = value;
+    extraFields[field.key] = (input.extraFields?.[field.key] ?? "").trim();
   }
 
   // A returning magic-link visitor confirming/editing their info — update

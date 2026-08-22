@@ -231,29 +231,6 @@ export default function WheelPage() {
     <>
       <SiteHeader crumbs={crumbs} />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <ImageUploadCard
-          title="Wheel image"
-          description={`Upload one image already divided into ${prizes.length} equal clockwise segments, starting at the top${hintOrder ? `: ${hintOrder}` : "."}`}
-          imageUrl={company.wheelImageUrl}
-          shape="circle"
-          uploading={uploading === "wheel"}
-          onUpload={(file) => uploadImage("wheel", file)}
-        />
-        <ImageUploadCard
-          title="Background image"
-          description="Shown behind the whole wheel page. Optional — falls back to the default gradient."
-          imageUrl={company.bgImageUrl}
-          uploading={uploading === "bg"}
-          onUpload={(file) => uploadImage("bg", file)}
-        />
-        <ImageUploadCard
-          title="Tip pin image"
-          description="Replaces the default pointer above the wheel. Optional — falls back to the default pin shape."
-          imageUrl={company.pinImageUrl}
-          uploading={uploading === "pin"}
-          onUpload={(file) => uploadImage("pin", file)}
-        />
-
         <Card>
           <CardHeader>
             <CardTitle>Prizes</CardTitle>
@@ -362,6 +339,29 @@ export default function WheelPage() {
             </Button>
           </CardFooter>
         </Card>
+        <ImageUploadCard
+          title="Wheel image"
+          description={`Upload one image already divided into ${prizes.length} equal clockwise segments, starting at the top${hintOrder ? `: ${hintOrder}` : "."}`}
+          imageUrl={company.wheelImageUrl}
+          shape="circle"
+          uploading={uploading === "wheel"}
+          onUpload={(file) => uploadImage("wheel", file)}
+        />
+        <ImageUploadCard
+          title="Background image"
+          description="Shown behind the whole wheel page. Optional — falls back to the default gradient."
+          imageUrl={company.bgImageUrl}
+          uploading={uploading === "bg"}
+          onUpload={(file) => uploadImage("bg", file)}
+        />
+        <ImageUploadCard
+          title="Tip pin image"
+          description="Replaces the default pointer above the wheel. Optional — falls back to the default pin shape."
+          imageUrl={company.pinImageUrl}
+          uploading={uploading === "pin"}
+          onUpload={(file) => uploadImage("pin", file)}
+        />
+
       </div>
     </>
   );
