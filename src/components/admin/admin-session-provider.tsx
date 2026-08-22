@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Status = "checking" | "unauthenticated" | "authenticated";
 
@@ -92,7 +93,8 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
 
   if (status === "unauthenticated") {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-background px-4">
+      <div className="relative flex min-h-svh items-center justify-center bg-background px-4">
+        <ThemeToggle className="absolute top-4 right-4" />
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Admin login</CardTitle>

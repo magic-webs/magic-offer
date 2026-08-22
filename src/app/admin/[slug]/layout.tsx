@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { CompanyContext, type CompanyDetails, type ViewerRole } from "./company-context";
 
 type Status = "loading" | "login" | "not_found" | "ready";
@@ -108,7 +109,8 @@ export default function CompanyAdminLayout({ children }: { children: ReactNode }
 
   if (status === "login" || !company) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-background px-4">
+      <div className="relative flex min-h-svh items-center justify-center bg-background px-4">
+        <ThemeToggle className="absolute top-4 right-4" />
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Company login</CardTitle>

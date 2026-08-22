@@ -12,6 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export type Crumb = {
   label: string;
@@ -39,7 +40,10 @@ export function SiteHeader({ crumbs, actions }: { crumbs: Crumb[]; actions?: Rea
           ))}
         </BreadcrumbList>
       </Breadcrumb>
-      {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+      <div className="ml-auto flex items-center gap-2">
+        {actions}
+        <ThemeToggle />
+      </div>
     </header>
   );
 }
