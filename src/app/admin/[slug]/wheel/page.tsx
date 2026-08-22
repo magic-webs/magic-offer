@@ -5,8 +5,10 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type DragEvent,
 } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2 } from "lucide-react";
+import { GripVertical, ImagePlus, Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SiteHeader } from "@/components/admin/site-header";
 import {
   Card,
@@ -23,6 +25,11 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCompany, useCompanyCrumbs } from "../company-context";
 import type { PrizeRow } from "../company-context";
+
+type EditablePrize = PrizeRow & {
+  pendingIconFile?: File;
+  pendingIconPreview?: string;
+};
 
 function ImageUploadCard({
   title,
@@ -77,10 +84,13 @@ function ImageUploadCard({
 export default function WheelPage() {
   const { company, reload } = useCompany();
   const crumbs = useCompanyCrumbs("Wheel & Prizes");
-  const [prizes, setPrizes] = useState<PrizeRow[]>(company.prizes);
+  const [prizes, setPrizes] = useState<EditablePrize[]>(company.prizes);
   const [savingPrizes, setSavingPrizes] = useState(false);
   const [prizesError, setPrizesError] = useState<string | null>(null);
   const [uploading, setUploading] = useState<"wheel" | "bg" | "pin" | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const prizeImageInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
     setPrizes(company.prizes);
@@ -100,26 +110,70 @@ export default function WheelPage() {
     }
   }
 
-  function updatePrize(index: number, patch: Partial<PrizeRow>) {
+  function updatePrize(index: number, patch: Partial<EditablePrize>) {
     setPrizes((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   }
 
-  function movePrize(index: number, delta: number) {
-    setPrizes((rows) => {
-      const target = index + delta;
-      if (target < 0 || target >= rows.length) return rows;
-      const next = [...rows];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  }
-
   function removePrize(index: number) {
-    setPrizes((rows) => rows.filter((_, i) => i !== index));
+    setPrizes((rows) => {
+      const target = rows[index];
+      if (target?.pendingIconPreview) URL.revokeObjectURL(target.pendingIconPreview);
+      return rows.filter((_, i) => i !== index);
+    });
   }
 
   function addPrize() {
     setPrizes((rows) => [...rows, { label: "", weight: 10, isWin: true }]);
+  }
+
+  function handleDragStart(e: DragEvent<HTMLButtonElement>, index: number) {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleDragOver(e: DragEvent<HTMLDivElement>, index: number) {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === index) return;
+    setDragOverIndex(index);
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>, targetIndex: number) {
+    e.preventDefault();
+    const sourceIndex = dragIndex ?? Number(e.dataTransfer.getData("text/plain"));
+    setDragIndex(null);
+    setDragOverIndex(null);
+    if (Number.isNaN(sourceIndex) || sourceIndex === targetIndex) return;
+    setPrizes((rows) => {
+      const next = [...rows];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  }
+
+  async function handlePrizeImageChange(index: number, e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const prize = prizes[index];
+    if (prize.id) {
+      const form = new FormData();
+      form.append("file", file);
+      await fetch(`/api/admin/prizes/${prize.id}/icon`, { method: "POST", body: form });
+      await reload();
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setPrizes((rows) =>
+      rows.map((r, i) => {
+        if (i !== index) return r;
+        if (r.pendingIconPreview) URL.revokeObjectURL(r.pendingIconPreview);
+        return { ...r, pendingIconFile: file, pendingIconPreview: previewUrl };
+      }),
+    );
   }
 
   async function savePrizes() {
@@ -130,30 +184,42 @@ export default function WheelPage() {
     }
     setSavingPrizes(true);
     try {
+      const payload = prizes.map(({ pendingIconFile, pendingIconPreview, ...rest }) => rest);
       const res = await fetch(`/api/admin/companies/${company.id}/prizes`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prizes }),
+        body: JSON.stringify({ prizes: payload }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setPrizesError(data?.message ?? "Couldn't save prizes.");
         return;
       }
-      await reload();
+
+      // New prizes have no id yet, so any image picked for them couldn't be
+      // uploaded immediately — do it now, matching by array position, which
+      // the API preserves exactly (order is assigned from array index on
+      // both the save and the reload's sort).
+      const pendingUploads = prizes
+        .map((p, index) => ({ index, file: p.pendingIconFile }))
+        .filter((entry): entry is { index: number; file: File } => Boolean(entry.file));
+
+      const freshCompany = await reload();
+      if (pendingUploads.length > 0 && freshCompany) {
+        await Promise.all(
+          pendingUploads.map(async ({ index, file }) => {
+            const prizeId = freshCompany.prizes[index]?.id;
+            if (!prizeId) return;
+            const form = new FormData();
+            form.append("file", file);
+            await fetch(`/api/admin/prizes/${prizeId}/icon`, { method: "POST", body: form });
+          }),
+        );
+        await reload();
+      }
     } finally {
       setSavingPrizes(false);
     }
-  }
-
-  async function handleIconChange(prizeId: string | undefined, e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !prizeId) return;
-    const form = new FormData();
-    form.append("file", file);
-    await fetch(`/api/admin/prizes/${prizeId}/icon`, { method: "POST", body: form });
-    await reload();
-    e.target.value = "";
   }
 
   const hintOrder = prizes
@@ -191,74 +257,93 @@ export default function WheelPage() {
         <Card>
           <CardHeader>
             <CardTitle>Prizes</CardTitle>
-            <CardDescription>The segments customers can win, in wheel order.</CardDescription>
+            <CardDescription>
+              The segments customers can win, in wheel order. Drag the handle to reorder.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {prizes.map((p, i) => (
-              <div
-                key={p.id ?? `new-${i}`}
-                className="flex flex-wrap items-center gap-3 rounded-xl border p-3"
-              >
-                {p.iconUrl ? (
-                  <img src={p.iconUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
-                ) : (
-                  <div className="h-9 w-9 shrink-0 rounded-lg border border-dashed" />
-                )}
-                <Input
-                  placeholder="Label"
-                  value={p.label}
-                  onChange={(e) => updatePrize(i, { label: e.target.value })}
-                  className="min-w-36 flex-1"
-                />
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="Weight"
-                  value={p.weight}
-                  onChange={(e) => updatePrize(i, { weight: Number(e.target.value) })}
-                  className="w-24"
-                />
-                <Label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Switch
-                    checked={p.isWin}
-                    onCheckedChange={(checked) => updatePrize(i, { isWin: checked })}
-                  />
-                  Counts as a win
-                </Label>
-                {p.id && (
-                  <Label className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                    Icon
+            {prizes.map((p, i) => {
+              const previewUrl = p.pendingIconPreview ?? p.iconUrl ?? null;
+              return (
+                <div
+                  key={p.id ?? `new-${i}`}
+                  onDragOver={(e) => handleDragOver(e, i)}
+                  onDragLeave={() => setDragOverIndex((cur) => (cur === i ? null : cur))}
+                  onDrop={(e) => handleDrop(e, i)}
+                  className={cn(
+                    "flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors",
+                    dragOverIndex === i && "border-primary bg-muted/50",
+                  )}
+                >
+                  <button
+                    type="button"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, i)}
+                    onDragEnd={() => {
+                      setDragIndex(null);
+                      setDragOverIndex(null);
+                    }}
+                    className="cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
+                    aria-label="Drag to reorder"
+                  >
+                    <GripVertical />
+                  </button>
+
+                  <div className="flex flex-col items-center gap-1">
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
+                    ) : (
+                      <div className="h-9 w-9 shrink-0 rounded-lg border border-dashed" />
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => prizeImageInputRefs.current[i]?.click()}
+                      aria-label="Upload prize image"
+                    >
+                      <ImagePlus />
+                    </Button>
                     <input
+                      ref={(el) => {
+                        prizeImageInputRefs.current[i] = el;
+                      }}
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => handleIconChange(p.id, e)}
+                      onChange={(e) => handlePrizeImageChange(i, e)}
                     />
+                  </div>
+
+                  <Input
+                    placeholder="Label"
+                    value={p.label}
+                    onChange={(e) => updatePrize(i, { label: e.target.value })}
+                    className="min-w-36 flex-1"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Weight"
+                    value={p.weight}
+                    onChange={(e) => updatePrize(i, { weight: Number(e.target.value) })}
+                    className="w-24"
+                  />
+                  <Label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Switch
+                      checked={p.isWin}
+                      onCheckedChange={(checked) => updatePrize(i, { isWin: checked })}
+                    />
+                    Counts as a win
                   </Label>
-                )}
-                <div className="ml-auto flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => movePrize(i, -1)}
-                    disabled={i === 0}
-                  >
-                    <ArrowUp />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => movePrize(i, 1)}
-                    disabled={i === prizes.length - 1}
-                  >
-                    <ArrowDown />
-                  </Button>
-                  <Button variant="destructive" size="icon-sm" onClick={() => removePrize(i)}>
-                    <Trash2 />
-                  </Button>
+                  <div className="ml-auto">
+                    <Button variant="destructive" size="icon-sm" onClick={() => removePrize(i)}>
+                      <Trash2 />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {prizes.length === 0 && (
               <p className="text-sm text-muted-foreground">No prizes yet — add one below.</p>
             )}

@@ -3,10 +3,14 @@ import { resolveCompanyAccess, setCompanyPassword } from "@/lib/companies";
 import { hashCompanyPassword } from "@/lib/companyAuth";
 
 // Either the platform admin or the company itself (already logged in) can
-// set/change/clear this company's own login password.
+// set/change this company's own login password. Clearing it entirely is
+// admin-only — a company could otherwise lock itself out with no way back
+// in except asking the admin anyway, so there's no point letting it happen
+// by accident from the company's own side.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: companyId } = await params;
-  if (!(await resolveCompanyAccess(req, companyId))) {
+  const role = await resolveCompanyAccess(req, companyId);
+  if (!role) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -14,6 +18,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const password = typeof body?.password === "string" ? body.password.trim() : "";
 
   if (!password) {
+    if (role !== "admin") {
+      return NextResponse.json({ error: "unauthorized" }, { status: 403 });
+    }
     await setCompanyPassword(companyId, null);
     return NextResponse.json({ ok: true, hasPassword: false });
   }

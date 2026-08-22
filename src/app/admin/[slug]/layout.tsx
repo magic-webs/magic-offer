@@ -51,6 +51,7 @@ export default function CompanyAdminLayout({ children }: { children: ReactNode }
     setCompany(details);
     setViewerRole(role);
     setStatus("ready");
+    return details;
   }, [slug]);
 
   useEffect(() => {

@@ -37,7 +37,7 @@ export type ViewerRole = "admin" | "company";
 
 export type CompanyContextValue = {
   company: CompanyDetails;
-  reload: () => Promise<void>;
+  reload: () => Promise<CompanyDetails | undefined>;
   viewerRole: ViewerRole | null;
 };
 

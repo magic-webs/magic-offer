@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Copy, Wand2 } from "lucide-react";
 import { SiteHeader } from "@/components/admin/site-header";
 import {
   Card,
@@ -19,8 +20,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { useCompany, useCompanyCrumbs } from "../company-context";
 
+// Excludes visually-ambiguous characters (I, l, O, 0, 1) so a generated
+// password stays easy to read back and retype correctly.
+const PASSWORD_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
+
+function generateStrongPassword(length = 16) {
+  const values = new Uint32Array(length);
+  crypto.getRandomValues(values);
+  return Array.from(values, (n) => PASSWORD_CHARSET[n % PASSWORD_CHARSET.length]).join("");
+}
+
 export default function CompanySettingsPage() {
-  const { company, reload } = useCompany();
+  const { company, reload, viewerRole } = useCompany();
   const crumbs = useCompanyCrumbs("Settings");
   const [name, setName] = useState(company.name);
   const [savingName, setSavingName] = useState(false);
@@ -28,9 +39,27 @@ export default function CompanySettingsPage() {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
   const [removingPassword, setRemovingPassword] = useState(false);
+
+  function handleGeneratePassword() {
+    const generated = generateStrongPassword();
+    setNewPassword(generated);
+    setConfirmPassword(generated);
+    setGeneratedPassword(generated);
+    setPasswordError(null);
+  }
+
+  function copyGeneratedPassword() {
+    if (!generatedPassword) return;
+    navigator.clipboard.writeText(generatedPassword).then(() => {
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 1500);
+    });
+  }
 
   async function patch(body: Record<string, unknown>) {
     await fetch(`/api/admin/companies/${company.id}`, {
@@ -82,6 +111,7 @@ export default function CompanySettingsPage() {
       }
       setNewPassword("");
       setConfirmPassword("");
+      setGeneratedPassword(null);
       await reload();
     } finally {
       setSavingPassword(false);
@@ -194,15 +224,29 @@ export default function CompanySettingsPage() {
           <CardContent>
             <form onSubmit={handleSetPassword} className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="new-company-password">
-                  {company.hasPassword ? "New password" : "Set password"}
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="new-company-password">
+                    {company.hasPassword ? "New password" : "Set password"}
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    className="h-auto p-0 text-muted-foreground hover:text-foreground"
+                    onClick={handleGeneratePassword}
+                  >
+                    <Wand2 /> Generate
+                  </Button>
+                </div>
                 <Input
                   id="new-company-password"
                   type="password"
                   placeholder="At least 8 characters"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    setGeneratedPassword(null);
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -211,9 +255,23 @@ export default function CompanySettingsPage() {
                   id="confirm-company-password"
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setGeneratedPassword(null);
+                  }}
                 />
               </div>
+              {generatedPassword && (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/40 px-3 py-2 sm:col-span-2">
+                  <span className="flex-1 font-mono text-sm">{generatedPassword}</span>
+                  <Button type="button" variant="outline" size="xs" onClick={copyGeneratedPassword}>
+                    <Copy /> {copiedPassword ? "Copied!" : "Copy"}
+                  </Button>
+                  <p className="w-full text-xs text-muted-foreground">
+                    Copy this now and share it with the company — it won&apos;t be shown again after you save.
+                  </p>
+                </div>
+              )}
               {passwordError && (
                 <Alert variant="destructive" className="sm:col-span-2">
                   <AlertDescription>{passwordError}</AlertDescription>
@@ -223,7 +281,7 @@ export default function CompanySettingsPage() {
                 <Button type="submit" disabled={savingPassword || !newPassword}>
                   {savingPassword ? "Saving…" : company.hasPassword ? "Change password" : "Set password"}
                 </Button>
-                {company.hasPassword && (
+                {company.hasPassword && viewerRole === "admin" && (
                   <Button
                     type="button"
                     variant="outline"
