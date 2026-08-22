@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE_NAME, isValidAdminSessionToken } from "@/lib/adminAuth";
-import { getCompanyWithDetails, updateCompany } from "@/lib/companies";
-
-function checkAuth(req: NextRequest) {
-  const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  return isValidAdminSessionToken(token);
-}
+import { getCompanyWithDetails, resolveCompanyAccess, updateCompany } from "@/lib/companies";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!checkAuth(req)) {
+  const { id } = await params;
+  if (!(await resolveCompanyAccess(req, id))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const { id } = await params;
   const company = await getCompanyWithDetails(id);
   if (!company) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -24,6 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     isActive: company.isActive,
     askName: company.askName,
     askPhone: company.askPhone,
+    hasPassword: Boolean(company.passwordHash),
     wheelImageUrl: company.wheelImage?.url ?? null,
     bgImageUrl: company.bgImage?.url ?? null,
     pinImageUrl: company.pinImage?.url ?? null,
@@ -53,10 +48,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!checkAuth(req)) {
+  const { id } = await params;
+  if (!(await resolveCompanyAccess(req, id))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const { id } = await params;
 
   const body = await req.json().catch(() => null);
   const patch: { name?: string; isActive?: boolean; askName?: boolean; askPhone?: boolean } = {};

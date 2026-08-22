@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { id as generateId } from "@instantdb/admin";
-import { ADMIN_COOKIE_NAME, isValidAdminSessionToken } from "@/lib/adminAuth";
-import { adminDb, getCompanyWithDetails, slugifyFieldKey } from "@/lib/companies";
-
-function checkAuth(req: NextRequest) {
-  const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  return isValidAdminSessionToken(token);
-}
+import { adminDb, getCompanyWithDetails, resolveCompanyAccess, slugifyFieldKey } from "@/lib/companies";
 
 interface FieldInput {
   id?: string;
@@ -22,10 +16,10 @@ interface FieldInput {
 // deleted. `order` is assigned from array position. Unlike prizes, an
 // empty list is valid (extra fields are optional).
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!checkAuth(req)) {
+  const { id: companyId } = await params;
+  if (!(await resolveCompanyAccess(req, companyId))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const { id: companyId } = await params;
 
   const body = await req.json().catch(() => null);
   const input: FieldInput[] = Array.isArray(body?.fields) ? body.fields : [];

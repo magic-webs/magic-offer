@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE_NAME, isValidAdminSessionToken } from "@/lib/adminAuth";
-import { adminDb } from "@/lib/companies";
-
-function checkAuth(req: NextRequest) {
-  const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  return isValidAdminSessionToken(token);
-}
+import { adminDb, resolveCompanyAccess } from "@/lib/companies";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
   const { id: prizeId } = await params;
 
   const { prizes } = await adminDb.query({ prizes: { $: { where: { id: prizeId } } } });
   const prize = prizes[0];
   if (!prize) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  if (!(await resolveCompanyAccess(req, prize.companyId))) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const form = await req.formData().catch(() => null);

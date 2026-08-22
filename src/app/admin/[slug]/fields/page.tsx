@@ -16,11 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useCompany } from "../company-context";
+import { useCompany, useCompanyCrumbs } from "../company-context";
 import type { FieldRow } from "../company-context";
 
 export default function FieldsPage() {
   const { company, reload } = useCompany();
+  const crumbs = useCompanyCrumbs("Form Fields");
   const [fields, setFields] = useState<FieldRow[]>(company.fields);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,14 +78,7 @@ export default function FieldsPage() {
 
   return (
     <>
-      <SiteHeader
-        crumbs={[
-          { label: "Dashboard", href: "/admin" },
-          { label: "Companies", href: "/admin/companies" },
-          { label: company.name, href: `/admin/${company.slug}` },
-          { label: "Form Fields" },
-        ]}
-      />
+      <SiteHeader crumbs={crumbs} />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <Card>
           <CardHeader>

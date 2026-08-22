@@ -1,26 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ADMIN_COOKIE_NAME, isValidAdminSessionToken } from "@/lib/adminAuth";
-import { createCompany, getCompanyBySlug, listCompaniesWithSpinCounts } from "@/lib/companies";
+import { createCompany, getCompanyBySlug, listCompaniesWithSpinCounts, resolveCompanyAccess } from "@/lib/companies";
 
 function checkAuth(req: NextRequest) {
   const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
   return isValidAdminSessionToken(token);
 }
 
+// A bare GET (no slug) lists every company and is platform-admin only. A
+// GET with `?slug=` looks up a single company by its public slug and is
+// how a company's own dashboard resolves its id — so it also accepts a
+// company_session scoped to that exact company.
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
   const slug = req.nextUrl.searchParams.get("slug");
   if (slug) {
     const company = await getCompanyBySlug(slug);
     if (!company) return NextResponse.json({ error: "not_found" }, { status: 404 });
-    return NextResponse.json({ company });
+    const viewerRole = await resolveCompanyAccess(req, company.id);
+    if (!viewerRole) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    const { passwordHash, ...safeCompany } = company;
+    return NextResponse.json({ company: safeCompany, viewerRole });
   }
 
+  if (!checkAuth(req)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   const companies = await listCompaniesWithSpinCounts();
-  return NextResponse.json({ companies });
+  return NextResponse.json({
+    companies: companies.map(({ passwordHash, ...c }) => ({ ...c, hasPassword: Boolean(passwordHash) })),
+  });
 }
 
 export async function POST(req: NextRequest) {

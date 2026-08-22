@@ -47,6 +47,11 @@ const _schema = i.schema({
       askName: i.boolean(),
       askPhone: i.boolean(),
       createdAt: i.number().indexed(),
+      // "salt:hex-hash" from lib/companyAuth.ts, scrypt-derived. Absent
+      // means company login is disabled — only the platform admin password
+      // can reach this company's dashboard. Never sent to the client;
+      // only a `hasPassword` boolean is ever exposed over the API.
+      passwordHash: i.string().optional(),
     }),
     prizes: i.entity({
       label: i.string(),

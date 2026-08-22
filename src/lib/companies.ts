@@ -1,6 +1,9 @@
 import { init, id } from "@instantdb/admin";
+import type { NextRequest } from "next/server";
 import schema from "@/instant.schema";
 import type { WheelPrize } from "@/lib/wheel";
+import { ADMIN_COOKIE_NAME, isValidAdminSessionToken } from "@/lib/adminAuth";
+import { COMPANY_COOKIE_NAME, readCompanySessionToken } from "@/lib/companyAuth";
 
 const adminDb = init({
   appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
@@ -16,6 +19,50 @@ export interface Company {
   askName: boolean;
   askPhone: boolean;
   createdAt: number;
+  passwordHash?: string;
+}
+
+export type CompanyAccessRole = "admin" | "company";
+
+// The single, shared authorization check for every /api/admin/companies/**
+// route: either the platform admin cookie, or a company_session cookie
+// whose signature is valid against this exact company's current
+// passwordHash (so it can never authorize a different company, and a
+// password change/removal invalidates it immediately).
+export async function resolveCompanyAccess(
+  req: NextRequest,
+  companyId: string | undefined | null,
+): Promise<CompanyAccessRole | null> {
+  const adminToken = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+  if (isValidAdminSessionToken(adminToken)) return "admin";
+  if (!companyId) return null;
+
+  const companyToken = req.cookies.get(COMPANY_COOKIE_NAME)?.value;
+  if (!companyToken) return null;
+
+  const auth = await getCompanyAuthById(companyId);
+  if (!auth?.passwordHash) return null;
+
+  const authedId = readCompanySessionToken(companyToken, auth.passwordHash);
+  return authedId === companyId ? "company" : null;
+}
+
+export async function getCompanyAuthById(
+  companyId: string,
+): Promise<{ id: string; passwordHash: string | null } | null> {
+  const { companies } = await adminDb.query({ companies: { $: { where: { id: companyId } } } });
+  const company = companies[0];
+  if (!company) return null;
+  return { id: company.id, passwordHash: company.passwordHash ?? null };
+}
+
+export async function setCompanyPassword(companyId: string, passwordHash: string | null) {
+  // `null` (not `undefined`) is required here to actually clear an
+  // existing value — InstantDB's `update()` treats an `undefined` value as
+  // "leave this attribute untouched", not "unset it".
+  await adminDb.transact(
+    adminDb.tx.companies[companyId].update({ passwordHash: passwordHash as unknown as string | undefined }),
+  );
 }
 
 export interface FormField {

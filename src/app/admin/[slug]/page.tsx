@@ -21,10 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldContent, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
-import { useCompany } from "./company-context";
+import { useCompany, useCompanyCrumbs } from "./company-context";
 
 export default function CompanyOverviewPage() {
   const { company, reload } = useCompany();
+  const crumbs = useCompanyCrumbs();
   const [spunCount, setSpunCount] = useState<number | null>(null);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -68,13 +69,7 @@ export default function CompanyOverviewPage() {
 
   return (
     <>
-      <SiteHeader
-        crumbs={[
-          { label: "Dashboard", href: "/admin" },
-          { label: "Companies", href: "/admin/companies" },
-          { label: company.name },
-        ]}
-      />
+      <SiteHeader crumbs={crumbs} />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <Card>
           <CardHeader>

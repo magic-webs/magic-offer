@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { Crumb } from "@/components/admin/site-header";
 
 export type PrizeRow = {
   id?: string;
@@ -24,6 +25,7 @@ export type CompanyDetails = {
   isActive: boolean;
   askName: boolean;
   askPhone: boolean;
+  hasPassword: boolean;
   wheelImageUrl: string | null;
   bgImageUrl: string | null;
   pinImageUrl: string | null;
@@ -31,9 +33,12 @@ export type CompanyDetails = {
   fields: (FieldRow & { key: string })[];
 };
 
+export type ViewerRole = "admin" | "company";
+
 export type CompanyContextValue = {
   company: CompanyDetails;
   reload: () => Promise<void>;
+  viewerRole: ViewerRole | null;
 };
 
 export const CompanyContext = createContext<CompanyContextValue | null>(null);
@@ -44,4 +49,18 @@ export function useCompany() {
     throw new Error("useCompany must be used within the company admin layout.");
   }
   return ctx;
+}
+
+// A company-role viewer has no access to the super-admin dashboard/companies
+// list, so those leading crumbs would just dead-end at its login wall —
+// omit them and start the trail at the company's own name instead.
+export function useCompanyCrumbs(...trail: string[]): Crumb[] {
+  const { company, viewerRole } = useCompany();
+  const base: Crumb[] =
+    viewerRole === "admin"
+      ? [{ label: "Dashboard", href: "/admin" }, { label: "Companies", href: "/admin/companies" }]
+      : [];
+  const companyCrumb: Crumb =
+    trail.length > 0 ? { label: company.name, href: `/admin/${company.slug}` } : { label: company.name };
+  return [...base, companyCrumb, ...trail.map((label) => ({ label }))];
 }

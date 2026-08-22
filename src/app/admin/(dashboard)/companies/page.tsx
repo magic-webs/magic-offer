@@ -39,6 +39,7 @@ type CompanyRow = {
   name: string;
   isActive: boolean;
   spinCount: number;
+  hasPassword: boolean;
 };
 
 export default function CompaniesPage() {
@@ -139,6 +140,7 @@ export default function CompaniesPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Login</TableHead>
                     <TableHead className="text-right">Registrations</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -154,6 +156,11 @@ export default function CompaniesPage() {
                       <TableCell>
                         <Badge variant={c.isActive ? "default" : "outline"}>
                           {c.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={c.hasPassword ? "secondary" : "outline"}>
+                          {c.hasPassword ? "Enabled" : "Not set"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">{c.spinCount}</TableCell>

@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCompany } from "../company-context";
+import { useCompany, useCompanyCrumbs } from "../company-context";
 
 type SpinRow = {
   id: string;
@@ -40,6 +40,7 @@ type SpinRow = {
 
 export default function RegistrationsPage() {
   const { company } = useCompany();
+  const crumbs = useCompanyCrumbs("Registrations");
   const [spins, setSpins] = useState<SpinRow[] | null>(null);
 
   useEffect(() => {
@@ -52,14 +53,7 @@ export default function RegistrationsPage() {
 
   return (
     <>
-      <SiteHeader
-        crumbs={[
-          { label: "Dashboard", href: "/admin" },
-          { label: "Companies", href: "/admin/companies" },
-          { label: company.name, href: `/admin/${company.slug}` },
-          { label: "Registrations" },
-        ]}
-      />
+      <SiteHeader crumbs={crumbs} />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <Card>
           <CardHeader>
