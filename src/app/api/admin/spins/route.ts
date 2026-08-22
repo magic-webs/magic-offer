@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { init } from "@instantdb/admin";
 import schema from "@/instant.schema";
-import { ADMIN_COOKIE_NAME, isValidAdminSessionToken } from "@/lib/adminAuth";
+import { isAdminRequestAuthenticated } from "@/lib/adminAuth";
 
 const adminDb = init({
   appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
@@ -10,8 +10,7 @@ const adminDb = init({
 });
 
 export async function GET(req: NextRequest) {
-  const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  if (!isValidAdminSessionToken(token)) {
+  if (!isAdminRequestAuthenticated(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

@@ -15,8 +15,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(COMPANY_COOKIE_NAME, createCompanySessionToken(company.id, company.passwordHash), {
+  // Also returned in the JSON body (not just set as a cookie) so a mobile
+  // client with no reliable persistent cookie jar can store it and send it
+  // back as `Authorization: Bearer <token>` instead — see lib/authToken.ts.
+  const token = createCompanySessionToken(company.id, company.passwordHash);
+  const res = NextResponse.json({ ok: true, token, companyId: company.id, slug: company.slug });
+  res.cookies.set(COMPANY_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

@@ -12,8 +12,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(ADMIN_COOKIE_NAME, createAdminSessionToken(), {
+  // Also returned in the JSON body (not just set as a cookie) so a mobile
+  // client with no reliable persistent cookie jar can store it and send it
+  // back as `Authorization: Bearer <token>` instead — see lib/authToken.ts.
+  const token = createAdminSessionToken();
+  const res = NextResponse.json({ ok: true, token });
+  res.cookies.set(ADMIN_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

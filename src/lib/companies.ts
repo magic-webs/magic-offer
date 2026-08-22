@@ -4,6 +4,7 @@ import schema from "@/instant.schema";
 import type { WheelPrize } from "@/lib/wheel";
 import { ADMIN_COOKIE_NAME, isValidAdminSessionToken } from "@/lib/adminAuth";
 import { COMPANY_COOKIE_NAME, readCompanySessionToken } from "@/lib/companyAuth";
+import { extractToken } from "@/lib/authToken";
 
 const adminDb = init({
   appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
@@ -25,19 +26,21 @@ export interface Company {
 export type CompanyAccessRole = "admin" | "company";
 
 // The single, shared authorization check for every /api/admin/companies/**
-// route: either the platform admin cookie, or a company_session cookie
-// whose signature is valid against this exact company's current
-// passwordHash (so it can never authorize a different company, and a
-// password change/removal invalidates it immediately).
+// route: either the platform admin token, or a company token whose
+// signature is valid against this exact company's current passwordHash
+// (so it can never authorize a different company, and a password
+// change/removal invalidates it immediately). Each token can arrive
+// either as its named cookie (web) or an Authorization: Bearer header
+// (mobile) — see lib/authToken.ts.
 export async function resolveCompanyAccess(
   req: NextRequest,
   companyId: string | undefined | null,
 ): Promise<CompanyAccessRole | null> {
-  const adminToken = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+  const adminToken = extractToken(req, ADMIN_COOKIE_NAME);
   if (isValidAdminSessionToken(adminToken)) return "admin";
   if (!companyId) return null;
 
-  const companyToken = req.cookies.get(COMPANY_COOKIE_NAME)?.value;
+  const companyToken = extractToken(req, COMPANY_COOKIE_NAME);
   if (!companyToken) return null;
 
   const auth = await getCompanyAuthById(companyId);

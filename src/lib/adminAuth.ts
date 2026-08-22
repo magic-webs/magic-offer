@@ -1,4 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import type { NextRequest } from "next/server";
+import { extractToken } from "@/lib/authToken";
 
 const COOKIE_NAME = "admin_session";
 const SESSION_LABEL = "admin-session-v1";
@@ -22,6 +24,12 @@ export function isValidAdminSessionToken(token: string | undefined | null) {
   const b = Buffer.from(expected);
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
+}
+
+// Accepts either the admin_session cookie (web) or an Authorization:
+// Bearer <token> header (mobile) carrying the same token value.
+export function isAdminRequestAuthenticated(req: NextRequest): boolean {
+  return isValidAdminSessionToken(extractToken(req, COOKIE_NAME));
 }
 
 export function isCorrectAdminPassword(password: string) {

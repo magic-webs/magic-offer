@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE_NAME, isValidAdminSessionToken } from "@/lib/adminAuth";
+import { isAdminRequestAuthenticated } from "@/lib/adminAuth";
 import { createCompany, getCompanyBySlug, listCompaniesWithSpinCounts, resolveCompanyAccess } from "@/lib/companies";
-
-function checkAuth(req: NextRequest) {
-  const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  return isValidAdminSessionToken(token);
-}
 
 // A bare GET (no slug) lists every company and is platform-admin only. A
 // GET with `?slug=` looks up a single company by its public slug and is
@@ -22,7 +17,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ company: safeCompany, viewerRole });
   }
 
-  if (!checkAuth(req)) {
+  if (!isAdminRequestAuthenticated(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const companies = await listCompaniesWithSpinCounts();
@@ -32,7 +27,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
+  if (!isAdminRequestAuthenticated(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
