@@ -159,3 +159,43 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+/* ── Marketing site ─────────────────────────────────────────────────────
+   Scroll-reveal starts hidden in CSS rather than inline so the content is
+   still readable without JS, and stays put for anyone who asked for less
+   motion. GSAP takes over from these values on the client. */
+.reveal,
+.reveal-children > * {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-children > * {
+    opacity: 1;
+  }
+}
+
+/* The 1px lattice behind the marketing sections, with a soft square node
+   at each intersection — the Cloudflare-style engineering-drawing look. */
+.grid-lines {
+  background-image:
+    linear-gradient(to right, var(--site-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--site-line) 1px, transparent 1px);
+  background-size: var(--site-cell) var(--site-cell);
+}
+
+.grid-fade {
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+}
+
+@keyframes node-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
