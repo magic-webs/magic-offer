@@ -1,0 +1,91 @@
+import Link from "next/link";
+import { Gift } from "lucide-react";
+import { legalEntity, legalLinks, navLinks, product, socialLinks } from "@/lib/siteConfig";
+
+export function SiteFooter() {
+  return (
+    <footer className="border-t border-white/10 bg-[#0a0a0a]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="lg:col-span-2">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-500">
+              <Gift className="size-4 text-[#0a0a0a]" />
+            </span>
+            <span className="font-heading text-[15px] font-semibold text-white">{product.name}</span>
+          </div>
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/50">{product.tagline}</p>
+
+          <address className="mt-6 space-y-1 text-sm not-italic text-white/50">
+            <p className="text-white/70">{legalEntity.name}</p>
+            <p className="max-w-xs">{legalEntity.address}</p>
+            <p>
+              <a
+                href={`mailto:${legalEntity.supportEmail}`}
+                className="transition-colors hover:text-white"
+              >
+                {legalEntity.supportEmail}
+              </a>
+              {" · "}
+              <a href={`tel:${legalEntity.phone}`} className="transition-colors hover:text-white">
+                {legalEntity.phoneDisplay}
+              </a>
+            </p>
+          </address>
+
+          <div className="mt-5 flex gap-4">
+            {socialLinks.map((social) => (
+              <a
+                key={social.href}
+                href={social.href}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-sm text-white/50 transition-colors hover:text-white"
+              >
+                {social.label}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-semibold tracking-widest text-white/40 uppercase">Product</h3>
+          <ul className="mt-4 space-y-2.5">
+            {navLinks.map((link) => (
+              <li key={link.href}>
+                <a href={link.href} className="text-sm text-white/60 transition-colors hover:text-white">
+                  {link.label}
+                </a>
+              </li>
+            ))}
+            <li>
+              <Link href="/admin" className="text-sm text-white/60 transition-colors hover:text-white">
+                Dashboard
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-semibold tracking-widest text-white/40 uppercase">Legal</h3>
+          <ul className="mt-4 space-y-2.5">
+            {legalLinks.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className="text-sm text-white/60 transition-colors hover:text-white">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="border-t border-white/10">
+        <div className="mx-auto max-w-6xl px-5 py-6">
+          <p className="text-xs text-white/40">
+            © {new Date().getFullYear()} {legalEntity.name}. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
