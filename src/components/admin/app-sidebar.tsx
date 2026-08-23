@@ -36,7 +36,7 @@ export function AppSidebar() {
                 <Gift className="size-4" />
               </div>
               <div className="flex flex-col leading-tight">
-                <span className="font-heading text-sm font-semibold">Magic Offer</span>
+                <span className="font-heading text-sm font-semibold">Magic Win</span>
                 <span className="text-xs text-muted-foreground">Admin</span>
               </div>
             </SidebarMenuButton>
