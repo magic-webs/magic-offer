@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, getDefaultCompany } from "@/lib/companies";
 import { drawWeightedPrize, type WheelPrize } from "@/lib/wheel";
+import { scheduleWebhookEvent } from "@/lib/webhooks";
 
 // The spin itself is identified purely by the token from /api/register —
 // the name and phone are already on file, so nothing re-enters them here.
@@ -68,6 +69,21 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+
+  // Fires only on this path, never on the `alreadySpun` early return
+  // above, so re-opening a magic link doesn't re-report the same result.
+  const eventData = {
+    registration: {
+      id: record.id,
+      name: record.name,
+      phone: record.phone,
+      extraFields: (record.extraFields ?? {}) as Record<string, string>,
+      createdAt: record.createdAt,
+    },
+    prize: { id: prize.id, label: prize.label, isWin: prize.isWin },
+  };
+  scheduleWebhookEvent(companyId, "spin.completed", eventData);
+  scheduleWebhookEvent(companyId, prize.isWin ? "prize.won" : "prize.lost", eventData);
 
   return NextResponse.json({
     alreadySpun: false,

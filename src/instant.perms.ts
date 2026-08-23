@@ -52,6 +52,17 @@ const rules = {
       delete: "false",
     },
   },
+  // Webhook rows hold a plaintext signing secret, so they must never be
+  // readable from the client SDK — every read/write goes through the
+  // password-gated /api/admin/companies/[id]/webhooks routes.
+  webhooks: {
+    allow: {
+      view: "false",
+      create: "false",
+      update: "false",
+      delete: "false",
+    },
+  },
 } satisfies InstantRules;
 
 export default rules;

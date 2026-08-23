@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { id } from "@instantdb/admin";
 import { adminDb } from "@/lib/companies";
 import { buildLoginUrl } from "@/lib/siteUrl";
+import { scheduleWebhookEvent } from "@/lib/webhooks";
 
 const PHONE_RE = /^[0-9+][0-9\s-]{6,14}$/;
 
@@ -88,10 +89,12 @@ export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSp
   }
 
   const token = generateToken();
+  const spinId = id();
+  const createdAt = Date.now();
   try {
     await adminDb.transact(
-      adminDb.tx.spins[id()]
-        .update({ name, phone, token, companyId, extraFields, createdAt: Date.now() })
+      adminDb.tx.spins[spinId]
+        .update({ name, phone, token, companyId, extraFields, createdAt })
         .link({ company: companyId }),
     );
   } catch {
@@ -104,6 +107,13 @@ export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSp
     }
     return { ok: false, status: 500, error: "server_error", message: "Something went wrong. Please try again." };
   }
+
+  // Only this path is a genuinely new signup — the returning-visitor and
+  // existing-phone branches above all resolve to an already-registered
+  // person, so firing there would double-report the same customer.
+  scheduleWebhookEvent(companyId, "registration.created", {
+    registration: { id: spinId, name, phone, extraFields, createdAt },
+  });
 
   return { ok: true, token, loginUrl: buildLoginUrl(token, companySlug) };
 }

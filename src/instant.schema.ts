@@ -73,6 +73,25 @@ const _schema = i.schema({
       companyId: i.string().indexed().optional(),
       createdAt: i.number().indexed(),
     }),
+    webhooks: i.entity({
+      companyId: i.string().indexed(),
+      url: i.string(),
+      // Shared secret this endpoint's deliveries are HMAC-signed with, so
+      // the receiver can prove a POST really came from us. Generated
+      // server-side and only ever revealed to an authenticated dashboard.
+      secret: i.string(),
+      // string[] of WEBHOOK_EVENT ids (see lib/webhooks.ts) this endpoint
+      // is subscribed to. JSON rather than a linked entity because it's a
+      // small closed set that's always read and written together.
+      events: i.json(),
+      isActive: i.boolean().indexed(),
+      createdAt: i.number().indexed(),
+      // Last delivery outcome, so the dashboard can show at a glance
+      // whether an endpoint is actually healthy.
+      lastStatus: i.number().optional(),
+      lastError: i.string().optional(),
+      lastAttemptAt: i.number().optional(),
+    }),
     formFields: i.entity({
       label: i.string(),
       // Stable slug derived from the label at creation time, used as the
@@ -126,6 +145,10 @@ const _schema = i.schema({
     companyFormFields: {
       forward: { on: "formFields", has: "one", label: "company", onDelete: "cascade" },
       reverse: { on: "companies", has: "many", label: "formFields" },
+    },
+    companyWebhooks: {
+      forward: { on: "webhooks", has: "one", label: "company", onDelete: "cascade" },
+      reverse: { on: "companies", has: "many", label: "webhooks" },
     },
   },
   rooms: {

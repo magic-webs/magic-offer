@@ -9,6 +9,7 @@ import {
   ListChecks,
   LogOut,
   Settings,
+  Webhook,
 } from "lucide-react";
 import {
   Sidebar,
@@ -32,6 +33,7 @@ function navItems(slug: string) {
     { title: "Wheel & Prizes", url: `${base}/wheel`, icon: Disc3, exact: false },
     { title: "Form Fields", url: `${base}/fields`, icon: ListChecks, exact: false },
     { title: "Registrations", url: `${base}/registrations`, icon: ClipboardList, exact: false },
+    { title: "Webhooks", url: `${base}/webhooks`, icon: Webhook, exact: false },
     { title: "Settings", url: `${base}/settings`, icon: Settings, exact: false },
   ];
 }
