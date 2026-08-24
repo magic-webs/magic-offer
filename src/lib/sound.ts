@@ -77,3 +77,84 @@ export function playWinSound() {
     });
   });
 }
+
+// A scraping sound mimicking a coin scratching a silver coating
+export function playScratchSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const start = ctx.currentTime;
+  for (let i = 0; i < 4; i++) {
+    playTone(ctx, start + i * 0.04, 130 + Math.random() * 70, {
+      type: "triangle",
+      gain: 0.12,
+      attack: 0.01,
+      decay: 0.03,
+    });
+  }
+}
+
+// An upbeat rolling arcade chiptune clatter simulating slot machine reels spinning
+export function playSlotSpinSound(durationMs: number) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const start = ctx.currentTime;
+  const duration = durationMs / 1000;
+  const steps = 18;
+  const scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00]; // C4 D4 E4 F4 G4 A4
+  for (let i = 0; i < steps; i++) {
+    const t = start + (i * duration) / steps;
+    const freq = scale[i % scale.length];
+    playTone(ctx, t, freq, {
+      type: "sawtooth",
+      gain: 0.07,
+      attack: 0.004,
+      decay: 0.07,
+    });
+  }
+}
+
+// A metallic high-frequency ding simulating Plinko peg impacts
+export function playPlinkoBounceSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  playTone(ctx, ctx.currentTime, 850 + Math.random() * 250, {
+    type: "sine",
+    gain: 0.15,
+    attack: 0.002,
+    decay: 0.06,
+  });
+}
+
+// A sliding pitch when dropping the plinko ball
+export function playPlinkoDropSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  playTone(ctx, ctx.currentTime, 380, {
+    type: "sine",
+    gain: 0.12,
+    attack: 0.01,
+    decay: 0.22,
+  });
+}
+
+// A paper-friction like slide sound for flipping cards
+export function playCardFlipSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  playTone(ctx, ctx.currentTime, 170, {
+    type: "sine",
+    gain: 0.12,
+    attack: 0.02,
+    decay: 0.06,
+  });
+}
+
+// A positive dual-chime when matching card pairs successfully
+export function playMatchSuccessSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const start = ctx.currentTime;
+  playTone(ctx, start, 523.25, { type: "triangle", gain: 0.16, attack: 0.01, decay: 0.12 }); // C5
+  playTone(ctx, start + 0.1, 783.99, { type: "triangle", gain: 0.16, attack: 0.01, decay: 0.18 }); // G5
+}
+

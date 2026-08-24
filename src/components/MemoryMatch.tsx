@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lottie } from "lottie-react";
 import { type WheelFormField, type WheelPrize } from "@/lib/wheel";
-import { playSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
+import { playCardFlipSound, playMatchSuccessSound, playWinSound, unlockAudio } from "@/lib/sound";
 import confettiAnimation from "../../public/lottie-animation/coffeti.json";
 
 type SpinResult = {
@@ -181,7 +181,7 @@ export default function MemoryMatch({
     if (cards[idx].isFlipped || cards[idx].isMatched || selectedIndices.length >= 2 || submitting || !token) return;
     
     unlockAudio();
-    playSpinSound(1000);
+    playCardFlipSound();
 
     const newIndices = [...selectedIndices, idx];
     setCards((prev) =>
@@ -193,6 +193,7 @@ export default function MemoryMatch({
       const [firstIdx, secondIdx] = newIndices;
       if (cards[firstIdx].label === cards[secondIdx].label) {
         // Matched
+        playMatchSuccessSound();
         setTimeout(() => {
           setCards((prev) =>
             prev.map((c, i) =>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lottie } from "lottie-react";
 import { type WheelFormField, type WheelPrize } from "@/lib/wheel";
-import { playSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
+import { playSlotSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
 import confettiAnimation from "../../public/lottie-animation/coffeti.json";
 
 type SpinResult = {
@@ -160,7 +160,7 @@ export default function SlotMachine({
 
     // Audio Unlock
     unlockAudio();
-    playSpinSound(3000);
+    playSlotSpinSound(3000);
     setSpinning(true);
     setSubmitting(true);
 

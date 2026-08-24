@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lottie } from "lottie-react";
 import { type WheelFormField, type WheelPrize } from "@/lib/wheel";
-import { playSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
+import { playPlinkoDropSound, playPlinkoBounceSound, playWinSound, unlockAudio } from "@/lib/sound";
 import confettiAnimation from "../../public/lottie-animation/coffeti.json";
 
 type SpinResult = {
@@ -235,7 +235,7 @@ export default function Plinko({
     setError(null);
 
     unlockAudio();
-    playSpinSound(1000);
+    playPlinkoDropSound();
     setDropping(true);
     setSubmitting(true);
 
@@ -312,7 +312,7 @@ export default function Plinko({
           const correction = distanceToTarget / (BOARD_HEIGHT - ballY) * 1.5;
           velX = (Math.random() - 0.5) * 3 + correction;
           velY = -velY * 0.4; // Bounce up slightly
-          playSpinSound(200);
+          playPlinkoBounceSound();
         }
       });
 

@@ -11,7 +11,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lottie } from "lottie-react";
 import { type WheelFormField, type WheelPrize } from "@/lib/wheel";
-import { playSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
+import { playScratchSound, playWinSound, unlockAudio } from "@/lib/sound";
 import confettiAnimation from "../../public/lottie-animation/coffeti.json";
 
 const CARD_WIDTH = 320;
@@ -222,7 +222,7 @@ export default function ScratchCard({
     unlockAudio();
 
     try {
-      playSpinSound(2500); // Scratching sound replacement duration
+      playScratchSound(); // Scratching sound effect
       const res = await fetch("/api/spin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
