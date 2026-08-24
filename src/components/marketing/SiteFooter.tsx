@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Gift } from "lucide-react";
+import Image from "next/image";
 import { legalEntity, legalLinks, navLinks, product, socialLinks } from "@/lib/siteConfig";
 
 export function SiteFooter() {
@@ -8,9 +8,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div className="lg:col-span-2">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-500">
-              <Gift className="size-4 text-[#0a0a0a]" />
-            </span>
+            <Image src="/logo-mark.png" alt="" width={32} height={32} className="size-8" />
             <span className="font-heading text-[15px] font-semibold text-white">{product.name}</span>
           </div>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/50">{product.tagline}</p>

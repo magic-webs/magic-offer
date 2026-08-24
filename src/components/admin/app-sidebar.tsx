@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Gift, LayoutDashboard, LogOut } from "lucide-react";
+import { Building2, LayoutDashboard, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +20,7 @@ import { useAdminSession } from "@/components/admin/admin-session-provider";
 
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Companies", url: "/admin/companies", icon: Gift },
+  { title: "Companies", url: "/admin/companies", icon: Building2 },
 ];
 
 export function AppSidebar() {
@@ -32,9 +33,13 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/admin" />}>
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Gift className="size-4" />
-              </div>
+              <Image
+                src="/logo-mark.png"
+                alt=""
+                width={32}
+                height={32}
+                className="size-8 shrink-0"
+              />
               <div className="flex flex-col leading-tight">
                 <span className="font-heading text-sm font-semibold">Magic Win</span>
                 <span className="text-xs text-muted-foreground">Admin</span>

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Gift, Menu, X } from "lucide-react";
+import Image from "next/image";
+import { Menu, X } from "lucide-react";
 import { navLinks, product } from "@/lib/siteConfig";
 
 export function SiteNav() {
@@ -24,9 +25,7 @@ export function SiteNav() {
     >
       <nav className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5">
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-          <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-500">
-            <Gift className="size-4 text-[#0a0a0a]" />
-          </span>
+          <Image src="/logo-mark.png" alt="" width={32} height={32} className="size-8" priority />
           <span className="font-heading text-[15px] font-semibold tracking-tight text-white">
             {product.name}
           </span>
