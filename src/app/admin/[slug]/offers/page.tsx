@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Edit2, Play, AlertCircle, Gamepad2, Calendar } from "lucide-react";
+import { Plus, Trash2, Edit2, Play, AlertCircle, Gamepad2, Calendar, ExternalLink } from "lucide-react";
 import { SiteHeader } from "@/components/admin/site-header";
 import { useCompany, useCompanyCrumbs } from "../company-context";
 import {
@@ -209,6 +209,14 @@ export default function OffersListPage() {
                   >
                     <Edit2 className="mr-1.5 h-3.5 w-3.5" /> Manage
                   </Link>
+                  <a
+                    href={`/w/${company.slug}?o=${offer.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonVariants({ variant: "outline", size: "sm", className: "flex-1" })}
+                  >
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Launch
+                  </a>
                   <Button
                     variant={offer.isActive ? "outline" : "default"}
                     size="sm"
