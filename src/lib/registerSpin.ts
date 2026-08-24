@@ -9,6 +9,7 @@ const PHONE_RE = /^[0-9+][0-9\s-]{6,14}$/;
 export interface RegisterSpinInput {
   companyId: string;
   companySlug: string | null;
+  offerId?: string | null;
   name: string | null;
   phone: string | null;
   // Present when this is a returning magic-link visitor confirming/editing
@@ -27,13 +28,11 @@ function generateToken() {
   return randomBytes(9).toString("base64url");
 }
 
-// Registers a person once (scoped to a single company) and hands back a
+// Registers a person once (scoped to a single company/offer) and hands back a
 // token that acts as a magic link. Calling this repeatedly with the same
-// phone number for the same company always returns the same token —
-// mirrors the exact idempotent lookup-then-create-with-race-catch pattern
-// this app has always used, now scoped by companyId instead of globally.
+// phone number for the same company/offer always returns the same token.
 export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSpinResult> {
-  const { companyId, companySlug, settings, fields = [] } = input;
+  const { companyId, companySlug, offerId, settings, fields = [] } = input;
 
   let name = input.name?.trim() ?? "";
   let phone = input.phone?.trim() ?? "";
@@ -77,7 +76,15 @@ export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSp
     // Stale/invalid token — fall through to the normal lookup-or-create flow.
   }
 
-  const existing = await adminDb.query({ spins: { $: { where: { phone, companyId } } } });
+  const existing = await adminDb.query({
+    spins: {
+      $: {
+        where: offerId
+          ? { phone, companyId, offerId }
+          : { phone, companyId },
+      },
+    },
+  });
   if (existing.spins.length > 0) {
     const prev = existing.spins[0];
     if (prev.token) {
@@ -94,13 +101,22 @@ export async function registerSpin(input: RegisterSpinInput): Promise<RegisterSp
   try {
     await adminDb.transact(
       adminDb.tx.spins[spinId]
-        .update({ name, phone, token, companyId, extraFields, createdAt })
-        .link({ company: companyId }),
+        .update({ name, phone, token, companyId, offerId: offerId ?? undefined, extraFields, createdAt })
+        .link({ company: companyId })
+        .link(offerId ? { offer: offerId } : {}),
     );
   } catch {
     // Race on phone+companyId — someone else's request for the same
     // number landed first. Fetch their token instead of erroring.
-    const afterRace = await adminDb.query({ spins: { $: { where: { phone, companyId } } } });
+    const afterRace = await adminDb.query({
+      spins: {
+        $: {
+          where: offerId
+            ? { phone, companyId, offerId }
+            : { phone, companyId },
+        },
+      },
+    });
     const prev = afterRace.spins[0];
     if (prev?.token) {
       return { ok: true, token: prev.token, loginUrl: buildLoginUrl(prev.token, companySlug) };

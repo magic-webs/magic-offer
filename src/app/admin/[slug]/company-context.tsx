@@ -26,6 +26,7 @@ export type CompanyDetails = {
   askName: boolean;
   askPhone: boolean;
   hasPassword: boolean;
+  gameType: string;
   wheelImageUrl: string | null;
   bgImageUrl: string | null;
   pinImageUrl: string | null;

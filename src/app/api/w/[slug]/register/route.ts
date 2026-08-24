@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCompanyBySlug, getFormFields } from "@/lib/companies";
+import { getCompanyBySlug, getPublicWheelConfig } from "@/lib/companies";
 import { registerSpin } from "@/lib/registerSpin";
 
 // Company-scoped equivalent of /api/register — see that file for the
@@ -12,16 +12,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   }
 
   const body = await req.json().catch(() => null);
-  const fields = await getFormFields(company.id);
+  const offerId = typeof body?.offerId === "string" ? body.offerId : undefined;
+
+  const config = await getPublicWheelConfig(company.id, offerId);
+  if (!config) {
+    return NextResponse.json({ error: "not_found", message: "This offer isn't available." }, { status: 404 });
+  }
+
   const result = await registerSpin({
     companyId: company.id,
     companySlug: company.slug,
+    offerId: config.offerId,
     name: typeof body?.name === "string" ? body.name : null,
     phone: typeof body?.phone === "string" ? body.phone : null,
     token: typeof body?.token === "string" ? body.token : null,
     extraFields: typeof body?.extraFields === "object" && body.extraFields ? body.extraFields : undefined,
-    settings: { askName: company.askName, askPhone: company.askPhone },
-    fields,
+    settings: { askName: config.askName, askPhone: config.askPhone },
+    fields: config.fields,
   });
 
   if (!result.ok) {

@@ -45,12 +45,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Query prizes by offerId if present, otherwise fall back to companyId
+  const offerId = record.offerId;
   const { prizes } = await adminDb.query({
-    prizes: { $: { where: { companyId }, order: { order: "asc" } } },
+    prizes: {
+      $: {
+        where: offerId ? { offerId } : { companyId },
+        order: { order: "asc" },
+      },
+    },
   });
+
   if (prizes.length === 0) {
     return NextResponse.json(
-      { error: "server_error", message: "This wheel isn't set up yet." },
+      { error: "server_error", message: "This game isn't set up yet." },
       { status: 500 },
     );
   }

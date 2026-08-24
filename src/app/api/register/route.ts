@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDefaultCompany, getFormFields } from "@/lib/companies";
-import { getSettings } from "@/lib/settingsStore";
+import { getDefaultCompany, getPublicWheelConfig } from "@/lib/companies";
 import { registerSpin } from "@/lib/registerSpin";
 
 // Registers a person once and hands back a token that acts as a magic
@@ -19,17 +18,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const settings = await getSettings();
-  const fields = await getFormFields(company.id);
+  const offerId = typeof body?.offerId === "string" ? body.offerId : undefined;
+  const config = await getPublicWheelConfig(company.id, offerId);
+  if (!config) {
+    return NextResponse.json({ error: "not_found", message: "This offer isn't available." }, { status: 404 });
+  }
+
   const result = await registerSpin({
     companyId: company.id,
     companySlug: null,
+    offerId: config.offerId,
     name: typeof body?.name === "string" ? body.name : null,
     phone: typeof body?.phone === "string" ? body.phone : null,
     token: typeof body?.token === "string" ? body.token : null,
     extraFields: typeof body?.extraFields === "object" && body.extraFields ? body.extraFields : undefined,
-    settings,
-    fields,
+    settings: { askName: config.askName, askPhone: config.askPhone },
+    fields: config.fields,
   });
 
   if (!result.ok) {

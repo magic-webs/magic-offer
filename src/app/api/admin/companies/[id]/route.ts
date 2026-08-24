@@ -19,6 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     askName: company.askName,
     askPhone: company.askPhone,
     hasPassword: Boolean(company.passwordHash),
+    gameType: company.gameType ?? "wheel",
     wheelImageUrl: company.wheelImage?.url ?? null,
     bgImageUrl: company.bgImage?.url ?? null,
     pinImageUrl: company.pinImage?.url ?? null,
@@ -54,11 +55,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const body = await req.json().catch(() => null);
-  const patch: { name?: string; isActive?: boolean; askName?: boolean; askPhone?: boolean } = {};
+  const patch: { name?: string; isActive?: boolean; askName?: boolean; askPhone?: boolean; gameType?: string } = {};
   if (typeof body?.name === "string" && body.name.trim()) patch.name = body.name.trim();
   if (typeof body?.isActive === "boolean") patch.isActive = body.isActive;
   if (typeof body?.askName === "boolean") patch.askName = body.askName;
   if (typeof body?.askPhone === "boolean") patch.askPhone = body.askPhone;
+  if (typeof body?.gameType === "string") patch.gameType = body.gameType;
 
   await updateCompany(id, patch);
   return NextResponse.json({ ok: true });

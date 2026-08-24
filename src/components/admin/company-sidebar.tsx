@@ -5,10 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   ArrowLeft,
   ClipboardList,
-  Disc3,
-  ListChecks,
   LogOut,
   Settings,
+  Ticket,
   Webhook,
 } from "lucide-react";
 import {
@@ -30,8 +29,7 @@ function navItems(slug: string) {
   const base = `/admin/${slug}`;
   return [
     { title: "Overview", url: base, icon: ClipboardList, exact: true },
-    { title: "Wheel & Prizes", url: `${base}/wheel`, icon: Disc3, exact: false },
-    { title: "Form Fields", url: `${base}/fields`, icon: ListChecks, exact: false },
+    { title: "Offers", url: `${base}/offers`, icon: Ticket, exact: false },
     { title: "Registrations", url: `${base}/registrations`, icon: ClipboardList, exact: false },
     { title: "Webhooks", url: `${base}/webhooks`, icon: Webhook, exact: false },
     { title: "Settings", url: `${base}/settings`, icon: Settings, exact: false },

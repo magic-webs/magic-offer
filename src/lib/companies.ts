@@ -21,6 +21,7 @@ export interface Company {
   askPhone: boolean;
   createdAt: number;
   passwordHash?: string;
+  gameType?: string;
 }
 
 export type CompanyAccessRole = "admin" | "company";
@@ -76,6 +77,7 @@ export interface FormField {
 }
 
 export interface PublicWheelConfig {
+  title: string;
   askName: boolean;
   askPhone: boolean;
   wheelImageUrl: string | null;
@@ -83,6 +85,9 @@ export interface PublicWheelConfig {
   pinImageUrl: string | null;
   prizes: WheelPrize[];
   fields: FormField[];
+  gameType?: string;
+  event?: string;
+  offerId?: string;
 }
 
 function slugify(name: string) {
@@ -173,22 +178,41 @@ export async function getFormFields(companyId: string): Promise<FormField[]> {
 
 export async function updateCompany(
   companyId: string,
-  patch: Partial<Pick<Company, "name" | "isActive" | "askName" | "askPhone">>,
+  patch: Partial<Pick<Company, "name" | "isActive" | "askName" | "askPhone" | "gameType">>,
 ) {
   await adminDb.transact(adminDb.tx.companies[companyId].update(patch));
 }
 
-export async function getPublicWheelConfig(companyId: string): Promise<PublicWheelConfig | null> {
-  const company = await getCompanyWithDetails(companyId);
-  if (!company) return null;
+export async function getPublicWheelConfig(companyId: string, offerId?: string): Promise<PublicWheelConfig | null> {
+  let offer;
+  if (offerId) {
+    offer = await getOfferWithDetails(offerId);
+    if (!offer || offer.companyId !== companyId) return null;
+  } else {
+    const { offers } = await adminDb.query({
+      offers: {
+        $: { where: { companyId, isActive: true }, order: { createdAt: "desc" } },
+        prizes: { $: { order: { order: "asc" } }, icon: {} },
+        formFields: { $: { order: { order: "asc" } } },
+        wheelImage: {},
+        bgImage: {},
+        pinImage: {},
+      }
+    });
+    offer = offers[0];
+  }
+  if (!offer) return null;
 
   return {
-    askName: company.askName,
-    askPhone: company.askPhone,
-    wheelImageUrl: company.wheelImage?.url ?? null,
-    bgImageUrl: company.bgImage?.url ?? null,
-    pinImageUrl: company.pinImage?.url ?? null,
-    prizes: (company.prizes ?? []).map((p) => ({
+    title: offer.title,
+    askName: offer.askName,
+    askPhone: offer.askPhone,
+    gameType: offer.type ?? "wheel",
+    event: offer.event ?? "none",
+    wheelImageUrl: offer.wheelImage?.url ?? null,
+    bgImageUrl: offer.bgImage?.url ?? null,
+    pinImageUrl: offer.pinImage?.url ?? null,
+    prizes: (offer.prizes ?? []).map((p) => ({
       id: p.id,
       label: p.label,
       weight: p.weight,
@@ -197,13 +221,28 @@ export async function getPublicWheelConfig(companyId: string): Promise<PublicWhe
       color: p.color,
       iconUrl: p.icon?.url,
     })),
-    fields: (company.formFields ?? []).map((f) => ({
+    fields: (offer.formFields ?? []).map((f) => ({
       id: f.id,
       key: f.key,
       label: f.label,
       required: f.required,
     })),
+    offerId: offer.id,
   };
+}
+
+export async function getOfferWithDetails(offerId: string) {
+  const { offers } = await adminDb.query({
+    offers: {
+      $: { where: { id: offerId } },
+      prizes: { $: { order: { order: "asc" } }, icon: {} },
+      formFields: { $: { order: { order: "asc" } } },
+      wheelImage: {},
+      bgImage: {},
+      pinImage: {},
+    },
+  });
+  return offers[0] ?? null;
 }
 
 export { adminDb };

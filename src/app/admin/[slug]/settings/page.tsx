@@ -70,10 +70,10 @@ export default function CompanySettingsPage() {
     await reload();
   }
 
-  async function handleToggle(key: "askName" | "askPhone" | "isActive", checked: boolean) {
+  async function handleToggle(key: string, value: unknown) {
     setSavingToggle(true);
     try {
-      await patch({ [key]: checked });
+      await patch({ [key]: value });
     } finally {
       setSavingToggle(false);
     }
@@ -198,6 +198,20 @@ export default function CompanySettingsPage() {
                   id="wheel-active"
                   checked={company.isActive}
                   onCheckedChange={(checked) => handleToggle("isActive", checked)}
+                  disabled={savingToggle}
+                />
+              </Field>
+            </FieldLabel>
+            <FieldLabel htmlFor="scratch-mode">
+              <Field orientation="horizontal">
+                <FieldContent>
+                  <FieldTitle>Scratch Card mode</FieldTitle>
+                  <FieldDescription>Use Scratch Card instead of the standard Spin Wheel.</FieldDescription>
+                </FieldContent>
+                <Switch
+                  id="scratch-mode"
+                  checked={company.gameType === "scratch"}
+                  onCheckedChange={(checked) => handleToggle("gameType", checked ? "scratch" : "wheel")}
                   disabled={savingToggle}
                 />
               </Field>

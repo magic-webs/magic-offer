@@ -30,6 +30,7 @@ const _schema = i.schema({
       // Optional only so the schema push doesn't choke on pre-migration
       // rows; every row created going forward always has one.
       companyId: i.string().indexed().optional(),
+      offerId: i.string().indexed().optional(),
       // { [formField.key]: answer } for whatever extra fields the company
       // has configured — see the `formFields` entity below.
       extraFields: i.json().optional(),
@@ -47,6 +48,7 @@ const _schema = i.schema({
       askName: i.boolean(),
       askPhone: i.boolean(),
       createdAt: i.number().indexed(),
+      gameType: i.string().optional(),
       // "salt:hex-hash" from lib/companyAuth.ts, scrypt-derived. Absent
       // means company login is disabled — only the platform admin password
       // can reach this company's dashboard. Never sent to the client;
@@ -71,6 +73,7 @@ const _schema = i.schema({
       // migration (backfilled immediately after this push); every row
       // created going forward always has one.
       companyId: i.string().indexed().optional(),
+      offerId: i.string().indexed().optional(),
       createdAt: i.number().indexed(),
     }),
     webhooks: i.entity({
@@ -101,7 +104,18 @@ const _schema = i.schema({
       required: i.boolean(),
       order: i.number().indexed(),
       companyId: i.string().indexed(),
+      offerId: i.string().indexed().optional(),
       createdAt: i.number().indexed(),
+    }),
+    offers: i.entity({
+      title: i.string(),
+      type: i.string().indexed(), // wheel | scratch | slot | giftbox | plinko | memory
+      event: i.string().indexed().optional(), // none | halloween | christmas | birthday | anniversary
+      isActive: i.boolean().indexed(),
+      askName: i.boolean(),
+      askPhone: i.boolean(),
+      createdAt: i.number().indexed(),
+      companyId: i.string().indexed(),
     }),
   },
   links: {
@@ -149,6 +163,34 @@ const _schema = i.schema({
     companyWebhooks: {
       forward: { on: "webhooks", has: "one", label: "company", onDelete: "cascade" },
       reverse: { on: "companies", has: "many", label: "webhooks" },
+    },
+    companyOffers: {
+      forward: { on: "offers", has: "one", label: "company", onDelete: "cascade" },
+      reverse: { on: "companies", has: "many", label: "offers" },
+    },
+    offerPrizes: {
+      forward: { on: "prizes", has: "one", label: "offer", onDelete: "cascade" },
+      reverse: { on: "offers", has: "many", label: "prizes" },
+    },
+    offerFormFields: {
+      forward: { on: "formFields", has: "one", label: "offer", onDelete: "cascade" },
+      reverse: { on: "offers", has: "many", label: "formFields" },
+    },
+    offerSpins: {
+      forward: { on: "spins", has: "one", label: "offer", onDelete: "cascade" },
+      reverse: { on: "offers", has: "many", label: "spins" },
+    },
+    offerWheelImage: {
+      forward: { on: "offers", has: "one", label: "wheelImage" },
+      reverse: { on: "$files", has: "many", label: "wheelImageOfOffers" },
+    },
+    offerBgImage: {
+      forward: { on: "offers", has: "one", label: "bgImage" },
+      reverse: { on: "$files", has: "many", label: "bgImageOfOffers" },
+    },
+    offerPinImage: {
+      forward: { on: "offers", has: "one", label: "pinImage" },
+      reverse: { on: "$files", has: "many", label: "pinImageOfOffers" },
     },
   },
   rooms: {
