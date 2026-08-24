@@ -2,6 +2,10 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import SpinWheel from "@/components/SpinWheel";
 import ScratchCard from "@/components/ScratchCard";
+import SlotMachine from "@/components/SlotMachine";
+import PickBox from "@/components/PickBox";
+import Plinko from "@/components/Plinko";
+import MemoryMatch from "@/components/MemoryMatch";
 import { getCompanyBySlug, getPublicWheelConfig } from "@/lib/companies";
 
 interface ThemeConfig {
@@ -26,34 +30,34 @@ function getEventTheme(event: string = "none", hasBgImage: boolean): ThemeConfig
         bgClass: hasBgImage ? "" : "bg-gradient-to-b from-neutral-950 via-red-950 to-emerald-950",
         headerImage: null,
         accentText: "text-red-400 font-sans tracking-wide",
-        decorations: ["❄️", "🎄", "🎁", "⛄"],
+        decorations: ["❄️", "🎄", "🎁", "🔔", "⛄"],
         snow: true,
       };
     case "birthday":
       return {
-        bgClass: hasBgImage ? "" : "bg-gradient-to-b from-neutral-900 via-pink-950 to-sky-950",
+        bgClass: hasBgImage ? "" : "bg-gradient-to-b from-pink-900 via-rose-950 to-purple-950",
         headerImage: null,
-        accentText: "text-pink-400 font-sans font-bold",
-        decorations: ["🎈", "🎂", "🎉", "🎁", "🥳"],
+        accentText: "text-rose-400 font-sans font-bold",
+        decorations: ["🎈", "🎂", "🎉", "🎁", "🍰"],
       };
     case "anniversary":
       return {
         bgClass: hasBgImage ? "" : "bg-gradient-to-b from-neutral-950 via-neutral-900 to-amber-950",
         headerImage: null,
-        accentText: "text-amber-400 font-serif tracking-widest uppercase",
-        decorations: ["✨", "🥂", "💖", "💫", "🍾"],
+        accentText: "text-amber-500 font-serif font-black tracking-widest",
+        decorations: ["✨", "💎", "🥂", "💖", "🌟"],
       };
     default:
       return {
-        bgClass: hasBgImage ? "" : "bg-gradient-to-b from-neutral-950 via-emerald-950 to-neutral-950",
-        headerImage: "/images/spin-and-win.png",
-        accentText: "text-emerald-400 font-heading",
+        bgClass: hasBgImage ? "" : "bg-gradient-to-b from-neutral-950 via-neutral-900 to-emerald-950",
+        headerImage: null,
+        accentText: "text-emerald-500 font-sans tracking-wide",
         decorations: [],
       };
   }
 }
 
-export default async function CompanyWheelPage({
+export default async function CustomerLandingPage({
   params,
   searchParams,
 }: {
@@ -126,7 +130,7 @@ export default async function CompanyWheelPage({
               className="absolute select-none pointer-events-none opacity-20 text-3xl"
               style={{
                 left: `${Math.random() * 100}%`,
-                bottom: `-40px`,
+                top: `100vh`,
                 animationDelay: `${Math.random() * 10}s`,
                 animationDuration: `${Math.random() * 8 + 8}s`,
                 animationName: "float-up",
@@ -167,8 +171,40 @@ export default async function CompanyWheelPage({
                 companySlug={slug}
                 prizes={config.prizes}
                 bgImageUrl={config.bgImageUrl}
-                formFields={config.fields}
                 initialSettings={{ askName: config.askName, askPhone: config.askPhone }}
+                formFields={config.fields}
+              />
+            ) : config.gameType === "slot" ? (
+              <SlotMachine
+                companySlug={slug}
+                prizes={config.prizes}
+                bgImageUrl={config.bgImageUrl}
+                initialSettings={{ askName: config.askName, askPhone: config.askPhone }}
+                formFields={config.fields}
+              />
+            ) : config.gameType === "giftbox" ? (
+              <PickBox
+                companySlug={slug}
+                prizes={config.prizes}
+                bgImageUrl={config.bgImageUrl}
+                initialSettings={{ askName: config.askName, askPhone: config.askPhone }}
+                formFields={config.fields}
+              />
+            ) : config.gameType === "plinko" ? (
+              <Plinko
+                companySlug={slug}
+                prizes={config.prizes}
+                bgImageUrl={config.bgImageUrl}
+                initialSettings={{ askName: config.askName, askPhone: config.askPhone }}
+                formFields={config.fields}
+              />
+            ) : config.gameType === "memory" ? (
+              <MemoryMatch
+                companySlug={slug}
+                prizes={config.prizes}
+                bgImageUrl={config.bgImageUrl}
+                initialSettings={{ askName: config.askName, askPhone: config.askPhone }}
+                formFields={config.fields}
               />
             ) : (
               <SpinWheel
@@ -176,8 +212,8 @@ export default async function CompanyWheelPage({
                 prizes={config.prizes}
                 wheelImageUrl={config.wheelImageUrl ?? ""}
                 pinImageUrl={config.pinImageUrl ?? undefined}
-                formFields={config.fields}
                 initialSettings={{ askName: config.askName, askPhone: config.askPhone }}
+                formFields={config.fields}
               />
             )}
           </Suspense>
