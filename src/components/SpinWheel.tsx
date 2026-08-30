@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Lottie } from "lottie-react";
 import { getPrizeArcs, type WheelFormField, type WheelPrize } from "@/lib/wheel";
 import { playSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
+import { notifyEmbedRegistered } from "@/lib/embedBridge";
 import confettiAnimation from "../../public/lottie-animation/coffeti.json";
 
 const WHEEL_SIZE = 320;
@@ -182,6 +183,7 @@ export default function SpinWheel({
       setSessionName(name.trim());
       setToken(data.token);
       setPhase("ready");
+      notifyEmbedRegistered();
       // A confirm/update on an already-issued link keeps the same URL —
       // only a brand-new registration needs the token appended.
       if (!isConfirmingExisting) router.replace(wheelHref(data.token));

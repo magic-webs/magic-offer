@@ -6,7 +6,10 @@ import SlotMachine from "@/components/SlotMachine";
 import PickBox from "@/components/PickBox";
 import Plinko from "@/components/Plinko";
 import MemoryMatch from "@/components/MemoryMatch";
+import FomoNotifications from "@/components/FomoNotifications";
 import { getCompanyBySlug, getPublicWheelConfig } from "@/lib/companies";
+import { normalizeFomoConfig } from "@/lib/fomo";
+import { getOfferConfigs } from "@/lib/offerConfig";
 
 interface ThemeConfig {
   bgClass: string;
@@ -62,10 +65,14 @@ export default async function CustomerLandingPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ o?: string }>;
+  searchParams: Promise<{ o?: string; embed?: string }>;
 }) {
   const { slug } = await params;
-  const { o: offerId } = await searchParams;
+  const { o: offerId, embed } = await searchParams;
+  // Rendered inside the embed popup on a merchant site: drop the outer
+  // breathing room, and leave the social proof to the loader, which is
+  // already showing it on the page behind the modal.
+  const embedded = embed === "1";
   const company = await getCompanyBySlug(slug);
   if (!company) notFound();
 
@@ -77,9 +84,15 @@ export default async function CustomerLandingPage({
 
   const theme = getEventTheme(config?.event, !!config?.bgImageUrl);
 
+  const fomo = config?.offerId && !embedded
+    ? normalizeFomoConfig((await getOfferConfigs(config.offerId)).fomo)
+    : null;
+
   return (
     <div
-      className={`relative flex min-h-screen flex-col items-center overflow-hidden px-4 py-10 ${theme.bgClass}`}
+      className={`relative flex flex-col items-center overflow-hidden px-4 ${
+        embedded ? "min-h-full py-6" : "min-h-screen py-10"
+      } ${theme.bgClass}`}
       style={bgStyle}
     >
       {/* CSS Keyframes for seasonal animations */}
@@ -219,6 +232,10 @@ export default async function CustomerLandingPage({
           </Suspense>
         )}
       </div>
+
+      {fomo?.enabled && config?.offerId && (
+        <FomoNotifications companySlug={slug} offerId={config.offerId} />
+      )}
     </div>
   );
 }

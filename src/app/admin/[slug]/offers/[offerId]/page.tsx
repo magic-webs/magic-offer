@@ -6,7 +6,7 @@ import Link from "next/link";
 import { 
   ArrowLeft, ArrowUp, ArrowDown, Plus, Trash2, Save, ImagePlus, 
   ExternalLink, Eye, Gamepad2, Calendar, Lock, Globe, FileText, Sparkles,
-  AlertCircle, Settings
+  AlertCircle, Settings, BellRing
 } from "lucide-react";
 import { SiteHeader } from "@/components/admin/site-header";
 import { useCompany, useCompanyCrumbs } from "../../company-context";
@@ -25,6 +25,10 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
+import FomoTab from "@/components/admin/FomoTab";
+import EmbedTab from "@/components/admin/EmbedTab";
+import { DEFAULT_FOMO_CONFIG, type FomoConfig } from "@/lib/fomo";
+import { DEFAULT_EMBED_CONFIG, type EmbedConfig } from "@/lib/embed";
 
 type PrizeRow = {
   id?: string;
@@ -57,6 +61,8 @@ type OfferDetail = {
   pinImageUrl: string | null;
   prizes: PrizeRow[];
   fields: FieldRow[];
+  fomoConfig: FomoConfig;
+  embedConfig: EmbedConfig;
 };
 
 const GAME_TYPES = [
@@ -66,6 +72,16 @@ const GAME_TYPES = [
   { value: "giftbox", label: "📦 Pick a Box" },
   { value: "plinko", label: "🔴 Drop the Ball" },
   { value: "memory", label: "🧠 Memory Match" },
+];
+
+type TabId = "game" | "form" | "fomo" | "embed" | "general";
+
+const TABS: { id: TabId; label: string; icon: typeof Gamepad2 }[] = [
+  { id: "game", label: "Game & Prizes", icon: Gamepad2 },
+  { id: "form", label: "Form Fields", icon: FileText },
+  { id: "fomo", label: "FOMO", icon: BellRing },
+  { id: "embed", label: "Embed & Exit Intent", icon: Globe },
+  { id: "general", label: "General Settings", icon: Settings },
 ];
 
 const EVENT_THEMES = [
@@ -89,7 +105,17 @@ export default function OfferDetailPage() {
   const [offer, setOffer] = useState<OfferDetail | null>(null);
   const [prizes, setPrizes] = useState<PrizeRow[]>([]);
   const [fields, setFields] = useState<FieldRow[]>([]);
-  const [activeTab, setActiveTab] = useState<"game" | "form" | "general">("game");
+  const [fomoConfig, setFomoConfig] = useState<FomoConfig>(DEFAULT_FOMO_CONFIG);
+  const [embedConfig, setEmbedConfig] = useState<EmbedConfig>(DEFAULT_EMBED_CONFIG);
+  const [activeTab, setActiveTab] = useState<TabId>("game");
+
+  // NEXT_PUBLIC_SITE_URL is what production serves the snippet from; the
+  // origin fallback keeps the copy-paste code correct in local dev. Resolved
+  // after mount so the server and client render the same first pass.
+  const [siteUrl, setSiteUrl] = useState(process.env.NEXT_PUBLIC_SITE_URL ?? "");
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SITE_URL) setSiteUrl(window.location.origin);
+  }, []);
 
   const crumbs = useCompanyCrumbs("Offers", offer?.title || "Edit Offer");
 
@@ -101,6 +127,8 @@ export default function OfferDetailPage() {
       setOffer(data);
       setPrizes(data.prizes || []);
       setFields(data.fields || []);
+      setFomoConfig(data.fomoConfig ?? DEFAULT_FOMO_CONFIG);
+      setEmbedConfig(data.embedConfig ?? DEFAULT_EMBED_CONFIG);
     } catch (err: any) {
       setError(err.message || "Failed to load offer settings.");
     } finally {
@@ -260,6 +288,31 @@ export default function OfferDetailPage() {
     }
   }
 
+  // Both the FOMO and the Embed tab persist through the same offer PUT —
+  // each sends only its own blob so the two tabs can never overwrite one
+  // another with a stale copy.
+  async function saveConfig(kind: "fomoConfig" | "embedConfig") {
+    setError(null);
+    setSuccess(null);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/offers/${offerId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          [kind]: kind === "fomoConfig" ? fomoConfig : embedConfig,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save settings.");
+      setSuccess(kind === "fomoConfig" ? "FOMO settings saved!" : "Embed settings saved!");
+      await loadOffer();
+    } catch (err: any) {
+      setError(err.message || "Failed to save settings.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // General Settings update
   async function saveSettings(e: FormEvent) {
     e.preventDefault();
@@ -365,37 +418,20 @@ export default function OfferDetailPage() {
       )}
 
       {/* Tabs navigation */}
-      <div className="flex gap-2 border-b border-muted">
-        <button
-          onClick={() => { setActiveTab("game"); setError(null); setSuccess(null); }}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-all ${
-            activeTab === "game"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Gamepad2 className="h-4 w-4" /> Game & Prizes
-        </button>
-        <button
-          onClick={() => { setActiveTab("form"); setError(null); setSuccess(null); }}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-all ${
-            activeTab === "form"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <FileText className="h-4 w-4" /> Form Fields
-        </button>
-        <button
-          onClick={() => { setActiveTab("general"); setError(null); setSuccess(null); }}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-all ${
-            activeTab === "general"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Settings className="h-4 w-4" /> General Settings
-        </button>
+      <div className="flex flex-wrap gap-2 border-b border-muted">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); setError(null); setSuccess(null); }}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-all ${
+              activeTab === tab.id
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <tab.icon className="h-4 w-4" /> {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Tab contents */}
@@ -664,6 +700,31 @@ export default function OfferDetailPage() {
               </CardFooter>
             </Card>
           </div>
+        )}
+
+        {/* FOMO TAB */}
+        {activeTab === "fomo" && (
+          <FomoTab
+            value={fomoConfig}
+            onChange={setFomoConfig}
+            onSave={() => saveConfig("fomoConfig")}
+            saving={saving}
+          />
+        )}
+
+        {/* EMBED & EXIT INTENT TAB */}
+        {activeTab === "embed" && (
+          <EmbedTab
+            value={embedConfig}
+            onChange={setEmbedConfig}
+            onSave={() => saveConfig("embedConfig")}
+            saving={saving}
+            siteUrl={siteUrl}
+            companySlug={company.slug}
+            offerId={offer.id}
+            offerTitle={offer.title}
+            offerIsActive={offer.isActive}
+          />
         )}
 
         {/* GENERAL SETTINGS TAB */}

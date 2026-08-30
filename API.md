@@ -117,6 +117,99 @@ for — set from `/admin`.
 { "askName": true, "askPhone": true }
 ```
 
+## Website embed loader
+
+```
+GET /embed.js
+```
+
+The script a merchant pastes onto their own site. Serves plain JavaScript
+with `Access-Control-Allow-Origin: *`; configuration comes from the two
+`data-` attributes on the tag itself.
+
+```html
+<script async src="https://win.magicwebs.ai/embed.js"
+  data-magic-offer="{slug}"
+  data-offer-id="{offerId}"></script>
+```
+
+`data-offer-id` is optional — without it the loader uses the company's
+newest active offer, the same rule `/w/{slug}` follows.
+
+Once loaded it exposes `window.MagicOffer` with `open()`, `close()`,
+`reset()` (clears frequency capping) and `config()`, and fires
+`magicoffer:open`, `magicoffer:close` and `magicoffer:registered` on
+`window`.
+
+`/embed-preview?slug={slug}&o={offerId}` is a sample storefront that loads
+this same script with frequency capping disabled, for testing triggers.
+
+## Embed configuration
+
+```
+GET /api/w/{slug}/embed-config?o={offerId}
+```
+
+Read-only, public, CORS-open. What `/embed.js` calls on load. Returns
+`{ "enabled": false, ... }` — with no `offer` — whenever the company, the
+offer or the embed itself is switched off, so the loader stays silent.
+
+```json
+{
+  "enabled": true,
+  "config": {
+    "triggers": { "exitIntent": true, "exitSensitivity": 20, "mobileScrollUp": true, "...": "..." },
+    "frequency": "session",
+    "armAfterSeconds": 3,
+    "showFomo": true,
+    "launcher": { "enabled": false, "text": "🎁 Win a prize", "...": "..." },
+    "modal": { "width": 460, "height": 640, "...": "..." },
+    "allowedDomains": []
+  },
+  "offer": {
+    "id": "...",
+    "title": "Summer Giveaway",
+    "companyName": "Acme",
+    "url": "https://win.magicwebs.ai/w/acme?o=...&embed=1",
+    "fomoUrl": "https://win.magicwebs.ai/api/w/acme/fomo?o=..."
+  }
+}
+```
+
+## FOMO notification feed
+
+```
+GET /api/w/{slug}/fomo?o={offerId}
+```
+
+Read-only, public, CORS-open, cached 30s. The social-proof notifications
+configured on the offer's FOMO tab, already rendered to display text.
+
+```json
+{
+  "enabled": true,
+  "position": "bottom-left",
+  "theme": "auto",
+  "displayMs": 5000,
+  "gapMs": 7000,
+  "initialDelayMs": 4000,
+  "loop": true,
+  "showOnMobile": true,
+  "items": [
+    { "id": "winner-...", "type": "recent_winner", "icon": "🏆", "text": "Priya S. just won 20% OFF — 4 minutes ago" },
+    { "id": "countdown", "type": "countdown", "icon": "⏳", "text": "Hurry — this offer ends in", "countdownEndsAt": 1788157538455, "template": "Hurry — this offer ends in {time}" }
+  ]
+}
+```
+
+Types `recent_winner`, `recent_signup`, `signup_count` and `low_stock` are
+built from real `spins` rows for the offer; `live_visitors` and `custom` are
+generated from what the merchant configured. `countdown` items carry
+`countdownEndsAt` and `template` so the client can tick them without
+re-fetching. Names are shortened to `First L.` unless the merchant turns
+that off. `enabled: false` with an empty `items` array is the answer for
+anything not switched on.
+
 ## Notes
 
 - `NEXT_PUBLIC_SITE_URL` (currently `https://win.magicwebs.ai`) controls the

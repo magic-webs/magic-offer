@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Lottie } from "lottie-react";
 import { type WheelFormField, type WheelPrize } from "@/lib/wheel";
 import { playSlotSpinSound, playWinSound, unlockAudio } from "@/lib/sound";
+import { notifyEmbedRegistered } from "@/lib/embedBridge";
 import confettiAnimation from "../../public/lottie-animation/coffeti.json";
 
 type SpinResult = {
@@ -146,6 +147,7 @@ export default function SlotMachine({
       setSessionName(name.trim());
       setToken(data.token);
       setPhase("ready");
+      notifyEmbedRegistered();
       if (!isConfirmingExisting) router.replace(gameHref(data.token));
     } catch {
       setRegisterError("Couldn't reach the server. Check your connection and try again.");

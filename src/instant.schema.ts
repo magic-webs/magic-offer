@@ -116,6 +116,14 @@ const _schema = i.schema({
       askPhone: i.boolean(),
       createdAt: i.number().indexed(),
       companyId: i.string().indexed(),
+      // Social-proof notification settings — see lib/fomo.ts for the shape
+      // and normalizeFomoConfig(), which every read goes through. JSON
+      // rather than a linked entity because it is a small closed set of
+      // toggles that is always read and written as one blob.
+      fomoConfig: i.json().optional(),
+      // Website-embed / exit-intent settings — see lib/embed.ts. Read by
+      // the public /embed.js loader on the merchant's own site.
+      embedConfig: i.json().optional(),
     }),
   },
   links: {
